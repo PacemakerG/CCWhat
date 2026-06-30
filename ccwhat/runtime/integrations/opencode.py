@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 
@@ -11,7 +12,7 @@ COMMANDS = {
     "start": "CCWhat Task start",
     "finish": "CCWhat Task finish",
 }
-OBSOLETE_COMMAND_NAMES = ("ccwhat-start", "ccwhat-finish")
+LEGACY_COLON_COMMAND_NAMES = ("ccwhat:start", "ccwhat:finish")
 
 
 class OpenCodeIntegrationConflict(RuntimeError):
@@ -27,11 +28,12 @@ def install_opencode_integration(workspace: Path) -> list[Path]:
     for directory in (command_dir, plugin_dir):
         directory.mkdir(parents=True, exist_ok=True)
 
-    for obsolete_name in OBSOLETE_COMMAND_NAMES:
-        _remove_managed(command_dir / f"{obsolete_name}.md")
+    if os.name != "nt":
+        for legacy_name in LEGACY_COLON_COMMAND_NAMES:
+            _remove_managed(command_dir / f"{legacy_name}.md")
 
     for name, description in COMMANDS.items():
-        path = command_dir / f"ccwhat:{name}.md"
+        path = command_dir / f"ccwhat-{name}.md"
         _write_managed(path, _command_content(name, description), "OpenCode command")
         written.append(path)
 

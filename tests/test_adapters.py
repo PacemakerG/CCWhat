@@ -623,6 +623,23 @@ class TestWebCommandAgentParam(unittest.TestCase):
                 self.assertEqual(result.exit_code, 0)
                 self.assertIn("Viewer", result.output)
 
+    def test_web_reports_unbindable_windows_port(self) -> None:
+        from unittest import mock
+        from click.testing import CliRunner
+        from ccwhat.commands.web_server import web_server
+
+        class FakeWinError10013(OSError):
+            winerror = 10013
+
+        with mock.patch("ccwhat.commands.web_server._port_in_use", return_value=False), \
+             mock.patch("ccwhat.commands.web_server.port_bind_error", return_value=FakeWinError10013(13, "bind denied")):
+            runner = CliRunner()
+            result = runner.invoke(web_server, ["--agent", "codex", "--port", "19995"])
+
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("TCP excluded port range", result.output)
+        self.assertIn("ccwhat web --port <other-port>", result.output)
+
 
 class TestRunAgentInferenceAndFallback(unittest.TestCase):
     def test_top_level_passthrough_invokes_run_with_claude(self) -> None:

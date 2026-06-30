@@ -1,6 +1,7 @@
 """Tests for ccwhat.task_segments.rules (tasks 3.1 – 3.5)."""
 
 import unittest
+from unittest import mock
 
 from ccwhat.task_segments.rules import (
     classify_intent,
@@ -19,6 +20,25 @@ class TestLoadRules(unittest.TestCase):
         self.assertIn("continuation_markers", rules)
         self.assertIn("boundary_markers", rules)
         self.assertIn("task_types", rules)
+
+    def test_load_rules_reads_resource_as_utf8(self):
+        class _FakeResource:
+            def joinpath(self, name):
+                self.name = name
+                return self
+
+            def read_text(self, *, encoding=None):
+                if encoding != "utf-8":
+                    raise UnicodeDecodeError("gbk", b"\xae", 0, 1, "bad")
+                return (
+                    '{"new_task_markers": {}, "continuation_markers": {}, '
+                    '"boundary_markers": {}, "task_types": {}}'
+                )
+
+        with mock.patch("ccwhat.task_segments.rules.resources.files", return_value=_FakeResource()):
+            rules = load_rules()
+
+        self.assertIn("new_task_markers", rules)
 
 
 class TestMatchPhrases(unittest.TestCase):

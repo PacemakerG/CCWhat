@@ -890,7 +890,10 @@ class ViewerBackend:
             from ccwhat.task_segments import segment_session
 
             started = time.monotonic()
-            result = segment_session(session)
+            try:
+                result = segment_session(session)
+            except Exception as exc:
+                return 500, {"ok": False, "error": f"task segmentation failed: {exc}"}
             elapsed_ms = int((time.monotonic() - started) * 1000)
             tasks_json = []
             for idx, task in enumerate(result.tasks, 1):
@@ -1263,7 +1266,10 @@ def create_app(
         payload = await _read_json_body(request)
         if payload is None:
             return _json({"ok": False, "error": "invalid JSON body"}, 400)
-        status, data = await run_in_threadpool(backend.analyze_response, request.url.path, payload, total_started)
+        try:
+            status, data = await run_in_threadpool(backend.analyze_response, request.url.path, payload, total_started)
+        except Exception as exc:
+            status, data = 500, {"ok": False, "error": f"task segmentation failed: {exc}"}
         return _json(data, status)
 
     @app.post("/api/save-task-dataset", include_in_schema=False)

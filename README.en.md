@@ -84,28 +84,66 @@ Export Sessions and related request records as an archive. Import the archive la
 
 ### Requirements
 
-- macOS, Linux, or WSL
+- macOS, Linux, WSL, or native Windows PowerShell
 - Python 3.10+
-- Native Windows is not currently supported
+- A working `mitmdump` command for local HTTP / HTTPS recording
 
-The installer checks Python and installs `mitmproxy` when needed.
+The Bash installer supports macOS, Linux, and WSL. Use the PowerShell steps below for native Windows.
 
-### Install or update
+### macOS / Linux / WSL install or update
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PacemakerG/CCWhat/main/install.sh | bash
 ```
 
+### Windows PowerShell install or update
+
+Use `uv` or `pipx` to install into an isolated environment:
+
+```powershell
+uv tool install git+https://github.com/PacemakerG/CCWhat.git
+uv tool install mitmproxy
+```
+
+With `pipx`:
+
+```powershell
+pipx install git+https://github.com/PacemakerG/CCWhat.git
+pipx install mitmproxy
+```
+
+With Python's built-in pip:
+
+```powershell
+py -m pip install --user git+https://github.com/PacemakerG/CCWhat.git
+py -m pip install --user mitmproxy
+```
+
+Make sure the Python user scripts, `uv tool`, or `pipx` installation directory is on `PATH`, then open a new PowerShell.
+
 Verify the installed version:
 
-```bash
+```powershell
 ccwhat --version
+mitmdump --version
 ```
 
 ### Uninstall
 
+macOS, Linux, or WSL:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PacemakerG/CCWhat/main/install.sh | bash -s -- uninstall
+```
+
+Windows PowerShell:
+
+```powershell
+uv tool uninstall ccwhat
+# or:
+pipx uninstall ccwhat
+# or:
+py -m pip uninstall ccwhat
 ```
 
 Uninstalling does not remove local configuration or recordings under `~/.ccwhat`.
@@ -185,6 +223,7 @@ The local Viewer connects these sources and provides Session navigation, Task se
 - Sensitive Headers such as `Authorization`, `Cookie`, `Set-Cookie`, and `X-API-Key` are replaced with `[REDACTED]` by default.
 - Request and response bodies may still contain Prompts, source code, or other business data. Inspect archives before sharing them.
 - HTTPS recording requires trusting the local `mitmproxy` CA certificate. AgentLens records only configured matching endpoints and paths.
+- On native Windows, the CA certificate is usually at `%USERPROFILE%\.mitmproxy\mitmproxy-ca-cert.pem`. Import it manually into Trusted Root Certification Authorities, or set `NODE_EXTRA_CA_CERTS` only for the target process.
 - Use Discovery mode when request and response bodies are not needed.
 
 Default data locations:
@@ -203,9 +242,13 @@ Default data locations:
 | macOS | Supported |
 | Linux | Supported |
 | WSL | Supported |
-| Native Windows | Not currently supported |
+| Native Windows | Supported for the minimum Codex path; Claude/OpenCode follow current adapter capabilities and still require real-machine validation for some behavior |
 
 Native log formats and write capabilities differ between agents. For example, Codex and OpenCode Sessions can be renamed from the Viewer, while Claude Code Sessions cannot currently be renamed there.
+
+The native Windows minimum support scope includes installation, `ccwhat -- codex`, `ccwhat proxy`, `ccwhat discover`, `ccwhat web --agent codex`, Codex Session browsing, automatic Task segmentation, and Dataset save/export. If Windows rejects a port because of the TCP excluded port range, follow the error message and choose another `--port` or `--web-port`.
+
+See [docs/WINDOWS.md](docs/WINDOWS.md) for detailed Windows installation, CA certificate, and manual acceptance steps.
 
 ## 🤝 Development and contributions
 

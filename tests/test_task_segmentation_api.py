@@ -161,6 +161,25 @@ class TestTaskSegmentsNotFound(unittest.TestCase):
         self.assertFalse(data["ok"])
 
 
+class TestTaskSegmentsBackendError(unittest.TestCase):
+    def setUp(self):
+        self.server, self.port = _make_test_server(SESSION_FIXTURE)
+
+    def tearDown(self):
+        self.server.server_close()
+
+    def test_backend_exception_returns_json_error(self):
+        """Backend segmentation failures return JSON instead of dropping the connection."""
+        _start(self.server)
+        with patch("ccwhat.task_segments.segmenter._Segmenter.run", side_effect=UnicodeDecodeError("gbk", b"\xae", 0, 1, "bad")):
+            status, data = _post(self.port, "/api/task-segments",
+                                 {"sessionId": "aabb1122aabb1122aabb1122"})
+
+        self.assertEqual(status, 500)
+        self.assertFalse(data["ok"])
+        self.assertIn("task segmentation failed", data["error"])
+
+
 class TestTaskSegmentsWrongPath(unittest.TestCase):
     def setUp(self):
         self.server, self.port = _make_test_server(SESSION_FIXTURE)

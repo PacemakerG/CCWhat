@@ -10,6 +10,7 @@ import click
 
 from ccwhat.adapters.registry import create_adapter
 from ccwhat.config import DEFAULT_CONFIG_PATH, DEFAULT_RAW_LOG_DIR
+from ccwhat.runtime.infra.ports import format_port_bind_error, port_bind_error
 
 
 def _port_in_use(port: int) -> bool:
@@ -70,6 +71,18 @@ def web_server(
         click.echo(f"Viewer may already be running: {url}")
         webbrowser.open(url)
         return
+
+    bind_error = port_bind_error(port)
+    if bind_error is not None:
+        click.echo(
+            format_port_bind_error(
+                port,
+                bind_error,
+                "Use a different port: ccwhat web --port <other-port>",
+            ),
+            err=True,
+        )
+        raise click.ClickException("viewer port is not bindable")
 
     adapter = create_adapter(agent, projects_dir)
     resolved_projects_dir = projects_dir if projects_dir is not None else adapter.default_projects_dir()

@@ -84,28 +84,66 @@ AgentLens 只做一件事：
 
 ### 环境要求
 
-- macOS、Linux 或 WSL
+- macOS、Linux、WSL 或 Windows 原生 PowerShell
 - Python 3.10+
-- Windows 原生环境暂不支持
+- 需要 `mitmdump` 命令可用，用于本地 HTTP / HTTPS 录制
 
-安装脚本会检查 Python，并在需要时安装 `mitmproxy`。
+macOS、Linux 和 WSL 可以使用安装脚本。Windows 原生环境请使用下面的 PowerShell 安装方式。
 
-### 安装或更新
+### macOS / Linux / WSL 安装或更新
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PacemakerG/CCWhat/main/install.sh | bash
 ```
 
+### Windows PowerShell 安装或更新
+
+推荐使用 `uv` 或 `pipx` 安装到隔离环境：
+
+```powershell
+uv tool install git+https://github.com/PacemakerG/CCWhat.git
+uv tool install mitmproxy
+```
+
+如果使用 `pipx`：
+
+```powershell
+pipx install git+https://github.com/PacemakerG/CCWhat.git
+pipx install mitmproxy
+```
+
+如果只使用 Python 自带的 pip：
+
+```powershell
+py -m pip install --user git+https://github.com/PacemakerG/CCWhat.git
+py -m pip install --user mitmproxy
+```
+
+确保 Python user scripts、`uv tool` 或 `pipx` 的安装目录已经加入 `PATH`，然后打开新的 PowerShell。
+
 安装完成后检查版本：
 
-```bash
+```powershell
 ccwhat --version
+mitmdump --version
 ```
 
 ### 卸载
 
+macOS、Linux 或 WSL：
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PacemakerG/CCWhat/main/install.sh | bash -s -- uninstall
+```
+
+Windows PowerShell：
+
+```powershell
+uv tool uninstall ccwhat
+# 或：
+pipx uninstall ccwhat
+# 或：
+py -m pip uninstall ccwhat
 ```
 
 卸载不会删除 `~/.ccwhat` 中的本地配置和记录。
@@ -185,6 +223,7 @@ AgentLens 组合两类证据：
 - `Authorization`、`Cookie`、`Set-Cookie`、`X-API-Key` 等敏感 Header 默认会被替换为 `[REDACTED]`。
 - 请求和响应正文仍可能包含 Prompt、代码或其他业务数据，分享导出文件前应自行检查。
 - HTTPS 记录需要信任 `mitmproxy` 的本地 CA 证书；AgentLens 只记录配置中匹配的目标地址和路径。
+- Windows 原生环境下，CA 证书通常位于 `%USERPROFILE%\.mitmproxy\mitmproxy-ca-cert.pem`。可以手动导入“受信任的根证书颁发机构”，或只为目标进程设置 `NODE_EXTRA_CA_CERTS`。
 - 不需要保存正文时，优先使用 Discovery 模式。
 
 默认数据目录：
@@ -203,9 +242,13 @@ AgentLens 组合两类证据：
 | macOS | 支持 |
 | Linux | 支持 |
 | WSL | 支持 |
-| Windows 原生环境 | 暂不支持 |
+| Windows 原生环境 | 支持 Codex 最低路径；Claude/OpenCode 按现有 adapter 能力使用，部分行为仍需实机验证 |
 
 不同 Agent 的本地日志结构和可写能力不同。例如，Codex 和 OpenCode 支持在 Viewer 中重命名 Session；Claude Code 当前不支持从 Viewer 重命名 Session。
+
+Windows 原生最低支持范围包括安装、`ccwhat -- codex`、`ccwhat proxy`、`ccwhat discover`、`ccwhat web --agent codex`、Codex Session 浏览、自动任务切分和 Dataset 保存/导出。遇到端口被 Windows TCP excluded port range 拒绝时，按错误提示换用 `--port` 或 `--web-port`。
+
+Windows 详细安装、CA 证书和手动验收步骤见 [docs/WINDOWS.md](docs/WINDOWS.md)。
 
 ## 🤝 开发与贡献
 

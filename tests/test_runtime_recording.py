@@ -18,12 +18,14 @@ from ccwhat.runtime.integrations.claude import (
 )
 from ccwhat.runtime.integrations.codex import (
     CodexIntegrationConflict,
+    _hook_command as codex_hook_command,
     install_codex_integration,
 )
 from ccwhat.runtime.integrations.opencode import (
     OpenCodeIntegrationConflict,
     install_opencode_integration,
 )
+from ccwhat.runtime.integrations.claude import _hook_content as claude_hook_content
 from ccwhat.runtime.http.client import call_controller
 from ccwhat.runtime.http.controller import RuntimeController
 from ccwhat.runtime.hooks.claude import main as claude_hook_main
@@ -319,13 +321,14 @@ def test_opencode_integration_generates_managed_files_and_detects_conflicts() ->
         workspace = Path(tmp)
         written = install_opencode_integration(workspace)
 
-        start_command = workspace / ".opencode" / "command" / "ccwhat:start.md"
-        finish_command = workspace / ".opencode" / "command" / "ccwhat:finish.md"
+        start_command = workspace / ".opencode" / "command" / "ccwhat-start.md"
+        finish_command = workspace / ".opencode" / "command" / "ccwhat-finish.md"
         plugin = workspace / ".opencode" / "plugin" / "ccwhat-runtime.js"
         start_text = start_command.read_text(encoding="utf-8")
         plugin_text = plugin.read_text(encoding="utf-8")
         assert start_command in written
         assert finish_command.exists()
+        assert all(":" not in path.name for path in written)
         assert "CCWHAT_COMMAND=start" in start_text
         assert "Reply exactly with: 收到" in start_text
         assert "command.execute.before" in plugin_text
@@ -337,14 +340,6 @@ def test_opencode_integration_generates_managed_files_and_detects_conflicts() ->
         assert "CCWHAT_ENABLED" in plugin_text
         assert "action" in plugin_text
 
-        obsolete_command = workspace / ".opencode" / "command" / "ccwhat-start.md"
-        obsolete_command.write_text(
-            "<!-- CCWHAT MANAGED OPENCODE RUNTIME TASK COMMAND v1 -->\nold\n",
-            encoding="utf-8",
-        )
-        install_opencode_integration(workspace)
-        assert not obsolete_command.exists()
-
         start_command.write_text("user file\n", encoding="utf-8")
         try:
             install_opencode_integration(workspace)
@@ -352,6 +347,30 @@ def test_opencode_integration_generates_managed_files_and_detects_conflicts() ->
             assert "refusing to overwrite" in str(exc)
         else:
             raise AssertionError("expected OpenCodeIntegrationConflict")
+
+
+def test_opencode_integration_removes_legacy_colon_commands_on_posix() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        workspace = Path(tmp)
+        command_dir = workspace / ".opencode" / "command"
+        command_dir.mkdir(parents=True)
+        marker = "<!-- CCWHAT MANAGED OPENCODE RUNTIME TASK COMMAND v1 -->\nold\n"
+        legacy_start = command_dir / "ccwhat:start.md"
+        legacy_finish = command_dir / "ccwhat:finish.md"
+        legacy_start.write_text(marker, encoding="utf-8")
+        legacy_finish.write_text(marker, encoding="utf-8")
+
+        install_opencode_integration(workspace)
+
+        assert not legacy_start.exists()
+        assert not legacy_finish.exists()
+
+
+def test_runtime_hook_commands_quote_windows_python_paths() -> None:
+    with mock.patch("sys.executable", r"C:\Program Files\Python313\python.exe"), \
+         mock.patch("ccwhat.runtime.platform.os.name", "nt"):
+        assert codex_hook_command().startswith(r'"C:\Program Files\Python313\python.exe" -m ')
+        assert "exec 'C:\\Program Files\\Python313\\python.exe' -m ccwhat.runtime.claude_hook" in claude_hook_content()
 
 
 def test_claude_hook_command_drives_controller_and_staging() -> None:

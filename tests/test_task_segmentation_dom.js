@@ -101,6 +101,7 @@ function makeDOM(sessionData, taskSegmentData) {
       window.HTMLElement.prototype.scrollIntoView = function() {
         this._scrolledIntoView = true;
       };
+      window.confirm = () => true;
       window.requestAnimationFrame = (cb) => { cb(0); return 0; };
       // Polyfill CSS.escape for jsdom
       if (!window.CSS) window.CSS = {};
@@ -552,6 +553,49 @@ async function test_manual_task_segmentation_from_tasks_page() {
   assert.strictEqual(overlay.tasks.length, 0, 'undo should remove the latest manual task');
 
   console.log('  ✓ manual segmentation from Tasks page creates and undoes a task');
+}
+
+async function test_auto_segmentation_failure_preserves_manual_overlay() {
+  const dom = makeDOM();
+  await loadTestSession(dom);
+
+  const win = dom.window;
+
+  win.navigateToPage('tasks');
+  await flushAsync();
+
+  const manualButton = Array.from(dom.window.document.querySelectorAll('#taskSegContent button'))
+    .find(btn => btn.textContent.includes('手动切分'));
+  manualButton.click();
+  await flushAsync();
+
+  const convs = win.allGroupConversations[0].conversations;
+  win.selectTraceNode('conversation', convs[0].conversationKey, 'main', convs[0].conversationKey, null);
+  win.selectTraceNode('conversation', convs[1].conversationKey, 'main', convs[1].conversationKey, null);
+  win.createManualSegmentTask();
+
+  const overlayBefore = win.activeTaskTraceOverlayBySession['test-session-001'];
+  assert.strictEqual(overlayBefore.tasks.length, 1, 'manual overlay should exist before auto segmentation');
+
+  win.fetch = (url) => {
+    const u = String(url);
+    if (u.includes('/api/task-segments')) {
+      return Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({ ok: false, error: 'backend exploded' }),
+      });
+    }
+    return Promise.reject(new Error(`unexpected fetch: ${u}`));
+  };
+
+  await win.runTaskSegmentationForCurrentSession();
+  await flushAsync();
+
+  const overlayAfter = win.activeTaskTraceOverlayBySession['test-session-001'];
+  assert.strictEqual(overlayAfter.tasks.length, 1, 'failed auto segmentation should keep manual overlay');
+  assert.strictEqual(overlayAfter.tasks[0].taskId, overlayBefore.tasks[0].taskId);
+
+  console.log('  ✓ failed automatic segmentation preserves manual overlay');
 }
 
 // ---------------------------------------------------------------------------
@@ -1977,6 +2021,7 @@ const tests = [
   test_show_nav_hint,
   test_tasks_page_waits_for_manual_segmentation,
   test_manual_task_segmentation_from_tasks_page,
+  test_auto_segmentation_failure_preserves_manual_overlay,
   test_session_tasks_session_roundtrip_keeps_logs_visible,
   test_missing_page_falls_back_to_session,
   // Bug fix regression tests

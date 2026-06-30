@@ -38,7 +38,7 @@ def _find_package_root(base: Path) -> Path:
 def _read_manifest(package_dir: Path) -> dict:
     manifest_path = package_dir / _MANIFEST_FILENAME
     try:
-        manifest = json.loads(manifest_path.read_text())
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         raise click.ClickException(f"Failed to read manifest.json: {exc}") from exc
     return manifest

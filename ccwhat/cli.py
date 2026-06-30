@@ -77,7 +77,7 @@ def cli(
     config_path: str | None,
     no_setup: bool,
 ) -> None:
-    """ccwhat — record and analyze AI coding CLI traffic.
+    """ccwhat - record and analyze AI coding CLI traffic.
 
     Launch a CLI through ccwhat:
 

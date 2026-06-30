@@ -37,6 +37,7 @@ from ccwhat.runtime.integrations.opencode import (
     install_opencode_integration,
 )
 from ccwhat.runtime.infra.ports import format_port_bind_error, port_bind_error, resolve_runtime_ports
+from ccwhat.runtime.platform import mitmdump_missing_message
 from ccwhat.runtime.infra.registry import RunRegistry, utc_now
 
 
@@ -63,7 +64,7 @@ def _viewer_agent_marker_path(port: int) -> Path:
 
 def _write_viewer_agent_marker(port: int, agent_name: str) -> None:
     try:
-        _viewer_agent_marker_path(port).write_text(agent_name)
+        _viewer_agent_marker_path(port).write_text(agent_name, encoding="utf-8")
     except OSError:
         pass
 
@@ -89,7 +90,7 @@ def _proxy_is_running(port: int) -> bool:
     marker = _marker_path(port)
     if marker.exists():
         try:
-            pid = int(marker.read_text().strip())
+            pid = int(marker.read_text(encoding="utf-8").strip())
         except (ValueError, OSError):
             pid = None
         # Verify the process is still alive
@@ -146,11 +147,7 @@ def _start_managed_proxy(
     try:
         proc = subprocess.Popen(cmd, env=env)
     except FileNotFoundError:
-        click.echo(
-            "Error: mitmdump command not found.\n"
-            "Install mitmproxy with:  brew install mitmproxy",
-            err=True,
-        )
+        click.echo(mitmdump_missing_message(), err=True)
         return None
 
     # Brief wait for proxy to bind (up to 2 s)
@@ -188,7 +185,7 @@ def _start_managed_proxy(
 
     # Write marker only after successful bind
     try:
-        _marker_path(port).write_text(str(proc.pid))
+        _marker_path(port).write_text(str(proc.pid), encoding="utf-8")
     except OSError:
         pass
 
@@ -208,7 +205,7 @@ def _start_managed_web(
     if _proxy_port_in_use(port):
         # Use API probe first (most reliable), fall back to file-based marker
         existing_agent = _probe_viewer_agent(port) or (
-            _viewer_agent_marker_path(port).read_text().strip()
+            _viewer_agent_marker_path(port).read_text(encoding="utf-8").strip()
             if _viewer_agent_marker_path(port).exists() else None
         )
         if existing_agent is not None and existing_agent != agent_name:
@@ -519,7 +516,7 @@ def run(
     try:
         resolved = _resolve_target_binary(target_args)
         if resolved != target_args:
-            click.echo(f"Resolved {target_args[0]} → {resolved[0]}")
+            click.echo(f"Resolved {target_args[0]} -> {resolved[0]}")
         target_proc = subprocess.Popen(list(resolved), env=child_env)
         if registry is not None and runtime_run_id is not None:
             registry.update(

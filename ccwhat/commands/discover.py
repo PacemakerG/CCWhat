@@ -19,6 +19,7 @@ from ccwhat.config import (
     save_config,
 )
 from ccwhat.runtime.infra.ports import format_port_bind_error, port_bind_error
+from ccwhat.runtime.platform import mitmdump_missing_message
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +170,7 @@ def _start_discovery_proxy(port: int, out_path: Path) -> subprocess.Popen | None
     try:
         proc = subprocess.Popen(cmd, env=env)
     except FileNotFoundError:
-        click.echo("Error: mitmdump not found. Install with: brew install mitmproxy", err=True)
+        click.echo(mitmdump_missing_message(), err=True)
         return None
 
     for _ in range(30):

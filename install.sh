@@ -14,8 +14,10 @@ echo ""
 case "$OS_NAME" in
   Darwin|Linux) ;;
   MINGW*|MSYS*|CYGWIN*)
-    echo "Windows native is not supported by this installer yet."
-    echo "Use WSL, then run this command inside Linux."
+    echo "This Bash installer is for macOS, Linux, and WSL."
+    echo "For native Windows PowerShell, install with:"
+    echo "  uv tool install git+https://github.com/PacemakerG/CCWhat.git"
+    echo "  uv tool install mitmproxy"
     exit 1
     ;;
   *)

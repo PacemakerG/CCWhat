@@ -40,8 +40,8 @@ OpenCode 1.17.9 支持项目级 command 和自动发现项目级 plugin：
 {
   "plugin": ["file:///.../.opencode/plugin/ccwhat-runtime.js"],
   "command": {
-    "ccwhat:start": { "description": "CCWhat Task start" },
-    "ccwhat:finish": { "description": "CCWhat Task finish" }
+    "ccwhat-start": { "description": "CCWhat Task start" },
+    "ccwhat-finish": { "description": "CCWhat Task finish" }
   }
 }
 ```
@@ -84,19 +84,21 @@ OpenCode App (Electron)
 CCWhat 生成：
 
 ```text
-.opencode/command/ccwhat:start.md
-.opencode/command/ccwhat:finish.md
+.opencode/command/ccwhat-start.md
+.opencode/command/ccwhat-finish.md
 .opencode/plugin/ccwhat-runtime.js
 ```
 
 用户在 OpenCode 中触发：
 
 ```text
-/ccwhat:start
-/ccwhat:finish
+/ccwhat-start
+/ccwhat-finish
 ```
 
 plugin 读取 `CCWHAT_RUNTIME_CONTROL_PORT` 和 `CCWHAT_RUNTIME_TOKEN`，调用本地 runtime controller。命令 prompt 允许进入模型，但只包含 task boundary marker 和“只回复收到”的约束。
+
+为兼容 macOS/Linux 上已有的历史命令，plugin 仍识别 `/ccwhat:start` 和 `/ccwhat:finish`；但仓库和新生成文件使用横杠命名，避免 Windows 文件系统不支持冒号路径。
 
 ### 降级标记
 

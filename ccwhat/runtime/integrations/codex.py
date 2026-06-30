@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import shlex
 import sys
+
+from ccwhat.runtime.platform import quote_command
 
 
 INTEGRATION_VERSION = "1"
@@ -156,4 +157,4 @@ def _install_hook_settings(hooks_path: Path) -> None:
 
 
 def _hook_command() -> str:
-    return f"{shlex.quote(sys.executable)} -m ccwhat.runtime.codex_hook"
+    return quote_command([sys.executable, "-m", "ccwhat.runtime.codex_hook"])

@@ -8354,11 +8354,7 @@ async function runTaskSegmentationForCurrentSession({ navigate = true } = {}) {
     return;
   }
 
-  // Unconfirm previous Task Trace when re-segmenting
-  unconfirmTaskTraceForSession(sessionId);
-  delete activeTaskTraceOverlayBySession[sessionId];
-
-  const previous = taskSegmentReports[sessionId] || null;
+  const previous = activeTaskTraceData(sessionId) || taskSegmentReports[sessionId] || null;
   taskSegmentsInFlight = true;
   updateTaskSegmentsButton();
   if (navigate && workbenchState.activeView !== 'tasks') navigateToPage('tasks');
@@ -8366,6 +8362,7 @@ async function runTaskSegmentationForCurrentSession({ navigate = true } = {}) {
   if (panel) panel.innerHTML = `<div class="analysis-status"><span class="spinner"></span> 正在切分任务…</div>`;
   try {
     const data = await requestTaskSegments(sessionId);
+    unconfirmTaskTraceForSession(sessionId);
     taskSegmentReports[sessionId] = data;
     rebuildTurnTaskAssociation(data);
     const overlay = ensureTaskTraceOverlayFromSegments(sessionId, data);

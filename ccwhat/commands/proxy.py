@@ -18,6 +18,7 @@ from ccwhat.config import (
     validate_domain,
 )
 from ccwhat.runtime.infra.ports import format_port_bind_error, port_bind_error
+from ccwhat.runtime.platform import mitmdump_missing_message
 
 
 def _build_recording_config_from_opts(
@@ -47,9 +48,11 @@ def _print_ca_guidance(port: int) -> None:
     ca_cert = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.pem"
     click.echo(f"CA certificate    : {ca_cert}")
     click.echo(
-        "  → macOS: sudo security add-trusted-cert -d -r trustRoot "
+        "  macOS  : sudo security add-trusted-cert -d -r trustRoot "
         f"-k /Library/Keychains/System.keychain {ca_cert}\n"
-        f"  → Set your client's HTTP proxy to http://127.0.0.1:{port}"
+        "  Windows: import this certificate into Trusted Root Certification Authorities,\n"
+        "    or set NODE_EXTRA_CA_CERTS for the target process only.\n"
+        f"  Proxy  : set your client's HTTP proxy to http://127.0.0.1:{port}"
     )
 
 
@@ -159,11 +162,7 @@ def proxy(
         result = subprocess.run(cmd, env=env)
         sys.exit(result.returncode)
     except FileNotFoundError:
-        click.echo(
-            "Error: mitmdump command not found.\n"
-            "Install mitmproxy with:  brew install mitmproxy",
-            err=True,
-        )
+        click.echo(mitmdump_missing_message(), err=True)
         sys.exit(1)
     except KeyboardInterrupt:
         click.echo("\nProxy stopped.")

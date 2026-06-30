@@ -26,7 +26,7 @@ def _process_file(input_path: Path, output_path: Path) -> tuple[int, int]:
                 raw = json.loads(line)
             except json.JSONDecodeError as exc:
                 click.echo(
-                    f"  Warning: {input_path.name}:{lineno} — invalid JSON, skipping ({exc})",
+                    f"  Warning: {input_path.name}:{lineno} - invalid JSON, skipping ({exc})",
                     err=True,
                 )
                 skipped += 1
@@ -40,7 +40,7 @@ def _process_file(input_path: Path, output_path: Path) -> tuple[int, int]:
                 record = parse_sse_record(raw)
             except (ValueError, KeyError) as exc:
                 click.echo(
-                    f"  Warning: {input_path.name}:{lineno} — parse error, skipping ({exc})",
+                    f"  Warning: {input_path.name}:{lineno} - parse error, skipping ({exc})",
                     err=True,
                 )
                 skipped += 1
@@ -92,7 +92,7 @@ def clear_req_resp(input: Path, output: Path | None) -> None:
                 continue
             dst = src.with_name(src.stem + "_parsed.jsonl")
             processed, skipped = _process_file(src, dst)
-            click.echo(f"{src.name} → {dst.name}  ({processed} records, {skipped} skipped)")
+            click.echo(f"{src.name} -> {dst.name}  ({processed} records, {skipped} skipped)")
             total_processed += processed
             total_skipped += skipped
 
@@ -104,4 +104,4 @@ def clear_req_resp(input: Path, output: Path | None) -> None:
             output = input.with_name(input.stem + "_parsed.jsonl")
 
         processed, skipped = _process_file(input, output)
-        click.echo(f"{input.name} → {output.name}  ({processed} records, {skipped} skipped)")
+        click.echo(f"{input.name} -> {output.name}  ({processed} records, {skipped} skipped)")

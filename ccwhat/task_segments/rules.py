@@ -15,7 +15,7 @@ from ccwhat.task_segments.models import IntentResult
 
 def load_rules() -> dict:
     return json.loads(
-        resources.files("ccwhat").joinpath("assets/task_segment_rules.json").read_text()
+        resources.files("ccwhat").joinpath("assets/task_segment_rules.json").read_text(encoding="utf-8")
     )
 
 
