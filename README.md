@@ -18,7 +18,7 @@
 
 <p>
   <strong>Changelog:</strong>
-  <a href="./CHANGELOG.md">v2.3.3</a> ·
+  <a href="./CHANGELOG.md">v2.3.5</a> ·
   <a href="./CHANGELOG.md">更新日志</a>
 </p>
 
@@ -228,6 +228,8 @@ AgentLens 组合两类证据：
 - Runtime Dataset V2：任务边界用户显式标定，记录 `repo_before/after` 快照、`diff.patch` 和完整 Agent 行为轨迹
 - `task_trace.json`：从 proxy session 日志按任务时间窗口提取 events、commands、errors、final_claim
 - OpenCode 支持：通过 `.opencode/command/` 注册 task 命令
+- 完整文件操作追踪：Write/Edit 创建修改、Bash `rm` 删除全部记录到 diff.patch，Step header 标注操作类型（v2.3.4）
+- OpenCode parity：补齐 `CCWHAT_ENABLED` 环境变量与 `tool.execute.after` hook，OpenCode 与 Claude Code 达到功能对齐（v2.3.5）
 
 **v2.2**
 
