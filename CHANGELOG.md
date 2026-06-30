@@ -2,6 +2,40 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
+## v2.3.6 - 2026-06-30
+
+### Windows 原生支持适配
+
+将 Windows 原生环境从"暂不支持"升级为"支持 Codex 最低路径"，覆盖安装、代理、端口诊断、编码和 OpenCode 命令兼容。
+
+### 新增
+
+- **Windows 原生安装入口**：README 与 docs/WINDOWS.md 提供 uv/pipx/pip 的 PowerShell 安装路径
+- **平台感知命令 quoting**：新增 `ccwhat/runtime/platform.py`，Windows 走 `subprocess.list2cmdline`，POSIX 走 `shlex.join`
+- **端口可绑定性诊断**：`ccwhat web` 接入 `port_bind_error`，识别 Windows TCP excluded port range (WinError 10013)
+- **Windows CA 证书指引**：proxy 启动输出 `%USERPROFILE%\.mitmproxy\mitmproxy-ca-cert.pem` 路径和信任步骤
+- **docs/WINDOWS.md**：安装、手动验收清单、CA 证书、剩余风险
+
+### 修复
+
+- **UTF-8 资源读取**：`task_segment_rules.json`、`manifest.json`、marker 文件显式 `encoding="utf-8"`，避免 GBK locale 下 `UnicodeDecodeError`
+- **自动切分失败保留手动 overlay**：`runTaskSegmentationForCurrentSession` 请求成功前不再 delete overlay，失败时恢复旧 task 列表（修复 [#7](https://github.com/PacemakerG/CCWhat/issues/7)）
+- **task segmentation 后端异常返回 JSON**：`/api/task-segments` 捕获异常返回 `{ok:false,error}`，不再中断连接
+- **OpenCode 命令文件 Windows 兼容**：`ccwhat:start.md` → `ccwhat-start.md`（colon 在 Windows 非法），plugin 同时识别新旧命令名
+- **mitmdump 缺失提示**：统一给出 uv/pipx/pip/brew 四种安装方式
+
+### 改动（review 修复）
+
+- **Claude hook 保留 shlex.quote**：`#!/bin/sh` 脚本不跑在 Windows 原生，回退 `quote_command` 为 `shlex.quote`
+- **剥离无关改动**：回退 PR 夹带的 `buildRawJsonSectionNew` contentBlock 改动
+- **补 legacy colon 清理测试**：新增 `test_opencode_integration_removes_legacy_colon_commands_on_posix`
+
+### 贡献者
+
+本版本 Windows 原生支持适配由 [@Sugarfarmeriod](https://github.com/Sugarfarmeriod) 贡献，详见 [PR #9](https://github.com/PacemakerG/CCWhat/pull/9)。
+
+---
+
 ## v2.3.5 - 2026-06-29
 
 ### Runtime Dataset V2 修复：OpenCode 完整支持

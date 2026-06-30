@@ -18,7 +18,7 @@
 
 <p>
   <strong>Changelog:</strong>
-  <a href="./CHANGELOG.md">v2.3.5</a> ·
+  <a href="./CHANGELOG.md">v2.3.6</a> ·
   <a href="./CHANGELOG.md">更新日志</a>
 </p>
 
@@ -84,11 +84,11 @@ AgentLens 只做一件事：
 
 ### 环境要求
 
-- macOS、Linux、WSL 或 Windows 原生 PowerShell
+- macOS、Linux、WSL 或 Windows
 - Python 3.10+
 - 需要 `mitmdump` 命令可用，用于本地 HTTP / HTTPS 录制
 
-macOS、Linux 和 WSL 可以使用安装脚本。Windows 原生环境请使用下面的 PowerShell 安装方式。
+macOS、Linux 和 WSL 可以使用安装脚本。Windows 请使用下面的 PowerShell 安装方式。
 
 ### macOS / Linux / WSL 安装或更新
 
@@ -242,13 +242,11 @@ AgentLens 组合两类证据：
 | macOS | 支持 |
 | Linux | 支持 |
 | WSL | 支持 |
-| Windows 原生环境 | 支持 Codex 最低路径；Claude/OpenCode 按现有 adapter 能力使用，部分行为仍需实机验证 |
+| Windows | 已支持 Codex 完整路径；Claude/OpenCode 沿用现有 adapter 能力，部分行为仍需实机验证 |
 
 不同 Agent 的本地日志结构和可写能力不同。例如，Codex 和 OpenCode 支持在 Viewer 中重命名 Session；Claude Code 当前不支持从 Viewer 重命名 Session。
 
-Windows 原生最低支持范围包括安装、`ccwhat -- codex`、`ccwhat proxy`、`ccwhat discover`、`ccwhat web --agent codex`、Codex Session 浏览、自动任务切分和 Dataset 保存/导出。遇到端口被 Windows TCP excluded port range 拒绝时，按错误提示换用 `--port` 或 `--web-port`。
-
-Windows 详细安装、CA 证书和手动验收步骤见 [docs/WINDOWS.md](docs/WINDOWS.md)。
+Windows 遇到端口被 TCP excluded port range 拒绝时，按错误提示换用 `--port` 或 `--web-port`。详细安装、CA 证书和手动验收步骤见 [docs/WINDOWS.md](docs/WINDOWS.md)。
 
 ## 🤝 开发与贡献
 
@@ -273,6 +271,7 @@ Windows 详细安装、CA 证书和手动验收步骤见 [docs/WINDOWS.md](docs/
 - OpenCode 支持：通过 `.opencode/command/` 注册 task 命令
 - 完整文件操作追踪：Write/Edit 创建修改、Bash `rm` 删除全部记录到 diff.patch，Step header 标注操作类型（v2.3.4）
 - OpenCode parity：补齐 `CCWHAT_ENABLED` 环境变量与 `tool.execute.after` hook，OpenCode 与 Claude Code 达到功能对齐（v2.3.5）
+- Windows 原生支持：PowerShell 安装入口、平台感知命令 quoting、端口可绑定性诊断、UTF-8 资源读取、OpenCode 命令文件改名兼容（v2.3.6）
 
 **v2.2**
 
