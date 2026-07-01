@@ -336,7 +336,7 @@ def _resolve_target_binary(target_args: tuple[str, ...]) -> tuple[str, ...]:
     help="Path to config.toml.",
 )
 @click.option("--no-setup", is_flag=True, help="Skip onboarding even if no config exists.")
-@click.option("--runtime-recording/--no-runtime-recording", default=False, hidden=True)
+@click.option("--runtime-recording/--no-runtime-recording", default=True, hidden=True)
 @click.argument("target_args", nargs=-1, type=click.UNPROCESSED)
 def run(
     port: int | None,
@@ -440,6 +440,7 @@ def run(
     runtime_controller: RuntimeController | None = None
     runtime_token = ""
 
+    # Runtime recording auto-enabled for supported agents (default=True, can disable with --no-runtime-recording)
     if runtime_recording and agent_name in {"claude", "codex", "opencode"}:
         registry = RunRegistry()
         runtime_run = registry.create_run(

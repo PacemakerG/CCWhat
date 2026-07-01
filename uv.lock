@@ -397,7 +397,7 @@ wheels = [
 
 [[package]]
 name = "ccwhat"
-version = "2.3.5"
+version = "2.3.7"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
