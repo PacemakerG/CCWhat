@@ -2,6 +2,29 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
+## v2.4.1 - 2026-07-02
+
+### Timeline 页嵌入 Session Gantt 视图
+
+把独立 session-gantt 页面以 iframe 方式嵌入 claude-log.html 的 Timeline 标签页，替换原扁平时间线列表。点击树节点弹出 assistant / tool_use / tool_result 详情面板，session 切换时 iframe 自动同步。
+
+### 新增
+
+- **依赖**：`pyproject.toml` 加入 `claude-code-log>=1.4.0`，复用其 `load_transcript` / `JsonRenderer` / typed models
+- **后端路由**（`viewer/server.py`）：
+  - `GET /api/session-gantt/<sessionId>` 返回扁平化 gantt 节点（depth / parentIdx / childIdxs / durationMs / tags / startMs / endMs），session 不存在返回 404
+  - `GET /api/session-entry/<sessionId>/<nodeId>` 返回单条节点详情（assistant / tool_use / tool_result / user_input / compact）
+  - `GET /session-gantt.html` 静态页路由
+  - 辅助函数 `_iso_to_ms` / `_GANTT_BARRIER_TYPES` / `_flatten_gantt_nodes` / `_find_session_jsonl` / `get_session_gantt` / `get_session_entry_detail`
+- **前端**：`viewer/session-gantt.html` 复制自 session-report-clean，支持 `embedded=1` URL 参数隐藏顶栏
+- **前端**：`viewer/claude-log.html` 新增 `updateTimelineIframe(sid)`，Timeline 页改为承载 iframe；`loadSession()` 和 `navigateToPage('timeline')` 路径同步刷新 iframe
+
+### 修复
+
+- **空 session 未清空 Timeline iframe**：`loadSession()` 在 session 选为空时直接 return，导致上一个 session 的甘特图残留。补上 `currentLoadedSessionId = ''; updateTimelineIframe('');` 后再 return
+
+---
+
 ## v2.4.0 - 2026-07-01
 
 ### Runtime Dataset 彻底重构：只保留 task 边界 git diff

@@ -19,21 +19,6 @@ async function callController(action, body = {}) {
   return payload.data || {}
 }
 
-function detectFileOperation(toolName, toolInput) {
-  // OpenCode tool names are lowercase: write, edit, bash
-  if (["write", "edit"].includes(toolName)) {
-    const filePath = toolInput?.filePath || toolInput?.file_path || toolInput?.path
-    if (filePath) return { tool: toolName, path: filePath, action: "add" }
-  }
-  // Any bash command may modify files (mv, sed, cp, echo >, rm, ...).
-  // Rather than parse the command, sync the whole workspace so the
-  // backend reconciles actual disk state into the isolated index.
-  if (toolName === "bash") {
-    return { tool: "bash", path: "", action: "sync" }
-  }
-  return null
-}
-
 export default async function ccwhatRuntimePlugin() {
   return {
     "command.execute.before": async (input, output) => {
@@ -51,22 +36,6 @@ export default async function ccwhatRuntimePlugin() {
       })
       if (data) {
         console.error(`CCWhat ${action} recorded locally${data.task_id ? ` (${data.task_id})` : ""}.`)
-      }
-    },
-    "tool.execute.after": async (input, output) => {
-      // Skip if CCWhat is not enabled
-      if (!process.env.CCWHAT_ENABLED) return
-      const toolName = input?.tool
-      const toolInput = input?.args
-      const operations = detectFileOperation(toolName, toolInput)
-      if (!operations) return
-      const ops = Array.isArray(operations) ? operations : [operations]
-      for (const op of ops) {
-        await callController("step", {
-          tool_name: op.tool,
-          file_path: op.path,
-          action: op.action,
-        })
       }
     },
   }

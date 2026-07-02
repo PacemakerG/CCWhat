@@ -47,6 +47,280 @@ def get_session(session_id: str, projects_dir: Path) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
+# Gantt data helpers (ported from deep-ai-analysis-session-report-clean)
+# ---------------------------------------------------------------------------
+
+_GANTT_BARRIER_TYPES = {"user", "assistant", "subagent"}
+
+
+def _iso_to_ms(ts: str) -> int:
+    """Convert ISO-8601 timestamp string to integer milliseconds. Returns 0 on failure."""
+    if not ts:
+        return 0
+    from datetime import datetime, timezone
+
+    s = ts.rstrip("Z").replace("+00:00", "")
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            dt = datetime.strptime(s, fmt).replace(tzinfo=timezone.utc)
+            return int(dt.timestamp() * 1000)
+        except ValueError:
+            continue
+    return 0
+
+
+def _flatten_gantt_nodes(nested_nodes: list) -> dict:
+    """Flatten nested JsonRenderer tree into a pre-computed flat array.
+
+    Each entry gains: depth, parentIdx, childIdxs, durationMs, tags, startMs, endMs.
+    Returns {"flat": [...], "sessionStartMs": int, "sessionMaxMs": int}.
+    """
+    from datetime import datetime
+
+    flat: list[dict] = []
+
+    def walk(nodes: list, depth: int, parent_idx: int | None) -> None:
+        for node in nodes:
+            idx = len(flat)
+            entry = {k: v for k, v in node.items() if k != "children"}
+            entry["depth"] = depth
+            entry["parentIdx"] = parent_idx
+            entry["childIdxs"] = []
+            entry["durationMs"] = 0
+            entry["tags"] = []
+            entry["startMs"] = 0
+            entry["endMs"] = 0
+            flat.append(entry)
+            if parent_idx is not None:
+                flat[parent_idx]["childIdxs"].append(idx)
+            walk(node.get("children", []), depth + 1, idx)
+
+    walk(nested_nodes, 0, None)
+
+    index_map: dict[str, int] = {}
+    for i, node in enumerate(flat):
+        if node.get("index") is not None:
+            index_map[str(node["index"])] = i
+
+    def ts_to_ms(ts: str | None) -> int:
+        if not ts:
+            return 0
+        try:
+            return int(datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() * 1000)
+        except Exception:
+            return 0
+
+    for node in flat:
+        node["startMs"] = ts_to_ms(node.get("timestamp"))
+
+    all_ms = [n["startMs"] for n in flat if n["startMs"]]
+    session_start_ms = min(all_ms) if all_ms else 0
+    session_max_ms = max(all_ms) if all_ms else 0
+
+    for i, node in enumerate(flat):
+        start = node["startMs"]
+        ntype = node.get("type", "")
+        if not start:
+            node["endMs"] = 0
+            continue
+        if ntype == "tool_use" and node.get("pair_last") is not None:
+            pair_i = index_map.get(str(node["pair_last"]))
+            end = flat[pair_i]["startMs"] if pair_i is not None else start
+            node["durationMs"] = max(0, end - start)
+            node["endMs"] = end or start
+        elif ntype == "user":
+            node["endMs"] = session_max_ms
+            node["durationMs"] = max(0, session_max_ms - start)
+            for j in range(i + 1, len(flat)):
+                if flat[j].get("type") == "user" and flat[j]["depth"] <= node["depth"]:
+                    end = flat[j]["startMs"] or session_max_ms
+                    node["durationMs"] = max(0, end - start)
+                    node["endMs"] = end
+                    break
+        else:
+            node["endMs"] = start
+
+    def collect_tags(idx: int) -> set:
+        tags: set = set()
+        for ci in flat[idx]["childIdxs"]:
+            child = flat[ci]
+            cc = child.get("content") or {}
+            if child.get("type") == "tool_use" and cc.get("tool_name") == "Agent":
+                tags.add("🤖")
+            if child.get("type") == "system" and cc.get("compact_trigger"):
+                tags.add("🔴")
+            tags |= collect_tags(ci)
+        return tags
+
+    for i, node in enumerate(flat):
+        if node.get("type") in _GANTT_BARRIER_TYPES:
+            node["tags"] = sorted(collect_tags(i))
+
+    return {
+        "flat": flat,
+        "sessionStartMs": session_start_ms,
+        "sessionMaxMs": session_max_ms,
+    }
+
+
+def _find_session_jsonl(session_id: str, projects_dir: Path) -> Path | None:
+    """Return Path to the session JSONL file, or None if not found."""
+    if not projects_dir.is_dir():
+        return None
+    for project_path in projects_dir.iterdir():
+        if not project_path.is_dir():
+            continue
+        p = project_path / f"{session_id}.jsonl"
+        if p.exists():
+            return p
+    return None
+
+
+def get_session_gantt(session_id: str, projects_dir: Path) -> dict[str, Any] | None:
+    """Build session tree using claude_code_log's JsonRenderer pipeline."""
+    from claude_code_log.converter import (
+        _integrate_agent_entries,
+        deduplicate_messages,
+        load_transcript,
+    )
+    from claude_code_log.json.renderer import JsonRenderer
+
+    jsonl_path = _find_session_jsonl(session_id, projects_dir)
+    if jsonl_path is None:
+        return None
+
+    messages = list(load_transcript(jsonl_path, silent=True))
+    _integrate_agent_entries(messages)
+    messages = deduplicate_messages(messages)
+
+    data = json.loads(JsonRenderer().generate(messages))
+    flattened = _flatten_gantt_nodes(data.get("messages", []))
+    return {
+        "sessionId": session_id,
+        "nodes": flattened["flat"],
+        "sessionStartMs": flattened["sessionStartMs"],
+        "sessionMaxMs": flattened["sessionMaxMs"],
+    }
+
+
+def get_session_entry_detail(session_id: str, node_id: str, projects_dir: Path) -> dict | None:
+    """Return rich detail JSON for a gantt node, using claude_code_log typed models."""
+    from claude_code_log.converter import load_transcript
+    from claude_code_log.models import (
+        AssistantTranscriptEntry,
+        TextContent,
+        ThinkingContent,
+        ToolResultContent,
+        ToolUseContent,
+        UserTranscriptEntry,
+    )
+
+    jsonl_path = _find_session_jsonl(session_id, projects_dir)
+    if jsonl_path is None:
+        return None
+
+    entries = list(load_transcript(jsonl_path, silent=True))
+
+    tool_name_map: dict[str, str] = {}
+    tool_input_map: dict[str, Any] = {}
+    for entry in entries:
+        if not isinstance(entry, AssistantTranscriptEntry) or not entry.message:
+            continue
+        for item in (entry.message.content or []):
+            if isinstance(item, ToolUseContent):
+                tool_name_map[item.id] = item.name
+                tool_input_map[item.id] = item.input or {}
+
+    if node_id.startswith("assistant-"):
+        msg_id = node_id[len("assistant-"):]
+        items: list[dict] = []
+        seen_tu: set[str] = set()
+        ts = ""
+        message_id = ""
+        for entry in entries:
+            if not isinstance(entry, AssistantTranscriptEntry) or not entry.message:
+                continue
+            if entry.message.id != msg_id and entry.uuid != msg_id:
+                continue
+            if not ts:
+                ts = entry.timestamp
+            if not message_id and entry.message.id:
+                message_id = entry.message.id
+            for item in (entry.message.content or []):
+                if isinstance(item, TextContent) and item.text:
+                    items.append({"kind": "text", "text": item.text})
+                elif isinstance(item, ThinkingContent) and item.thinking:
+                    items.append({"kind": "thinking", "text": item.thinking})
+                elif isinstance(item, ToolUseContent) and item.id not in seen_tu:
+                    seen_tu.add(item.id)
+                    items.append({"kind": "tool_use", "id": item.id, "name": item.name, "input": item.input or {}})
+        if not items and not ts:
+            return None
+        result: dict = {"nodeId": node_id, "type": "assistant", "timestamp": ts, "items": items}
+        if message_id:
+            result["messageId"] = message_id
+        return result
+
+    if node_id.startswith("tool_use-"):
+        tuid = node_id[len("tool_use-"):]
+        for entry in entries:
+            if not isinstance(entry, AssistantTranscriptEntry) or not entry.message:
+                continue
+            for item in (entry.message.content or []):
+                if isinstance(item, ToolUseContent) and item.id == tuid:
+                    return {"nodeId": node_id, "type": "tool_use", "timestamp": entry.timestamp,
+                            "toolName": item.name, "input": item.input or {}}
+        return None
+
+    if node_id.startswith("tool_result-"):
+        tuid = node_id[len("tool_result-"):]
+        for entry in entries:
+            if not isinstance(entry, UserTranscriptEntry) or not entry.message:
+                continue
+            content = entry.message.content
+            if not isinstance(content, list):
+                continue
+            for item in content:
+                if not isinstance(item, ToolResultContent) or item.tool_use_id != tuid:
+                    continue
+                rc = item.content
+                if isinstance(rc, str):
+                    result_text = rc
+                elif isinstance(rc, list):
+                    result_text = "\n".join(i.get("text", "") if isinstance(i, dict) else str(i) for i in rc)
+                else:
+                    result_text = ""
+                return {"nodeId": node_id, "type": "tool_result", "timestamp": entry.timestamp,
+                        "toolName": tool_name_map.get(tuid, ""), "toolInput": tool_input_map.get(tuid, {}),
+                        "isError": bool(item.is_error), "content": result_text}
+        return None
+
+    def _entry_text(entry: UserTranscriptEntry) -> str:
+        content = entry.message.content if entry.message else ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return "\n".join(item.text for item in content if isinstance(item, TextContent) and item.text)
+        return ""
+
+    if node_id.startswith("user_input-"):
+        uid = node_id[len("user_input-"):]
+        for entry in entries:
+            if getattr(entry, "uuid", None) == uid and isinstance(entry, UserTranscriptEntry):
+                return {"nodeId": node_id, "type": "user_input", "timestamp": entry.timestamp, "text": _entry_text(entry)}
+        return None
+
+    if node_id.startswith("compact-"):
+        uid = node_id[len("compact-"):]
+        for entry in entries:
+            if getattr(entry, "uuid", None) == uid and isinstance(entry, UserTranscriptEntry):
+                return {"nodeId": node_id, "type": "compact", "timestamp": entry.timestamp, "text": _entry_text(entry)}
+        return None
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # HTTP record helpers (unchanged)
 # ---------------------------------------------------------------------------
 
@@ -1085,6 +1359,24 @@ def create_app(
     @app.get("/req-resp.html", include_in_schema=False)
     async def req_resp_html() -> FileResponse:
         return FileResponse(backend.viewer_dir / "req-resp.html", media_type="text/html")
+
+    @app.get("/session-gantt.html", include_in_schema=False)
+    async def session_gantt_html() -> FileResponse:
+        return FileResponse(backend.viewer_dir / "session-gantt.html", media_type="text/html")
+
+    @app.get("/api/session-gantt/{session_id}", include_in_schema=False)
+    async def session_gantt(session_id: str) -> JSONResponse:
+        data = await run_in_threadpool(get_session_gantt, session_id, backend.projects_dir)
+        if data is None:
+            return _json({"error": "session not found"}, 404)
+        return _json(data)
+
+    @app.get("/api/session-entry/{session_id}/{node_id:path}", include_in_schema=False)
+    async def session_entry(session_id: str, node_id: str) -> JSONResponse:
+        data = await run_in_threadpool(get_session_entry_detail, session_id, node_id, backend.projects_dir)
+        if data is None:
+            return _json({"error": "entry not found"}, 404)
+        return _json(data)
 
     @app.get("/api/replay/status", include_in_schema=False)
     async def replay_status(request: Request) -> JSONResponse:

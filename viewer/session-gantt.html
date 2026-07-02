@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Session Tree</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0f1117; color: #e1e4e8;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ── Top bar ── */
+.topbar {
+  background: #161b22; border-bottom: 1px solid #30363d;
+  padding: 8px 14px; display: flex; align-items: center;
+  gap: 8px; flex-shrink: 0; flex-wrap: wrap;
+}
+.topbar h1 { font-size: 14px; font-weight: 600; color: #f0f6fc; white-space: nowrap; }
+select.field {
+  background: #0d1117; color: #e1e4e8;
+  border: 1px solid #30363d; border-radius: 5px;
+  padding: 4px 8px; font-size: 12px; cursor: pointer;
+}
+select.field:focus { outline: none; border-color: #58a6ff; }
+.btn {
+  background: #21262d; color: #e1e4e8;
+  border: 1px solid #30363d; border-radius: 5px;
+  padding: 4px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: #30363d; }
+.badge-count { font-size: 11px; color: #8b949e; }
+.nav-links { margin-left: auto; display: flex; gap: 10px; }
+.nav-link { font-size: 12px; color: #58a6ff; text-decoration: none; white-space: nowrap; }
+/* ── Gantt column panel (always visible, 62% width) ── */
+.gantt-overlay { width: 62%; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid #30363d; background: #0a0d13; }
+.gantt-axis { height: 20px; position: relative; border-top: 1px solid #21262d; flex-shrink: 0; background: #0a0d13; }
+.gantt-tick { position: absolute; font-size: 9px; color: #484f58; transform: translateX(-50%); white-space: nowrap; top: 3px; }
+.gantt-rows { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.gantt-row-bar { position: relative; height: 28px; flex-shrink: 0; border-bottom: 1px solid #0d1117; transition: background .1s; }
+.gantt-row-bar.hovered { background: #161b22; }
+.gantt-bar { position: absolute; top: 6px; height: 16px; border-radius: 2px; opacity: 0.82; overflow: hidden; display: flex; align-items: center; }
+.gantt-bar-label { font-size: 10px; color: rgba(255,255,255,0.88); white-space: nowrap; overflow: hidden; padding: 0 4px; pointer-events: none; }
+.gantt-marker { position: absolute; top: 4px; width: 2px; height: 20px; border-radius: 1px; opacity: 0.6; }
+
+/* ── Main layout: tree + detail panel ── */
+.main { flex: 1; overflow: hidden; display: flex; min-height: 0; }
+
+/* ── Tree section ── */
+.tree-section { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.tree-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+/* ── Each row ── */
+.tree-row {
+  display: flex; align-items: center;
+  border-bottom: 1px solid #1c2129;
+  height: 28px; overflow: hidden; padding: 0;
+}
+.tree-row:hover { background: #161b22; }
+.tree-row.hidden { display: none !important; }
+.tree-row.selected { background: #1c2736 !important; }
+
+.row-indent { flex-shrink: 0; }
+.row-arrow {
+  width: 16px; flex-shrink: 0; text-align: center;
+  font-size: 10px; color: #58a6ff; cursor: pointer;
+  user-select: none; transition: transform .15s;
+}
+.row-arrow.open { transform: rotate(90deg); }
+.row-arrow.leaf { color: transparent; cursor: default; }
+.type-badge {
+  font-size: 10px; border-radius: 3px; padding: 1px 5px;
+  flex-shrink: 0; font-weight: 600; white-space: nowrap;
+}
+.row-title {
+  font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; padding: 4px 8px 4px 4px; color: #c9d1d9;
+}
+.row-ts { font-size: 10px; color: #484f58; flex-shrink: 0; padding-right: 8px; white-space: nowrap; text-align: right; line-height: 1.4; }
+.row-ts-abs { color: #6e7681; }
+.row-ts-rel { color: #484f58; }
+.row-dur { font-size: 10px; color: #3fb950; flex-shrink: 0; padding-right: 6px; white-space: nowrap; }
+.row-index { font-size: 9px; color: #30363d; flex-shrink: 0; padding: 0 4px; font-family: "SF Mono","Fira Mono",monospace; }
+.row-tag { font-size: 11px; flex-shrink: 0; padding: 0 2px; opacity: 0.75; }
+.row-skill-tag { font-size: 10px; flex-shrink: 0; padding: 1px 5px; border-radius: 3px; background: #0d2030; color: #58a6ff; border: 1px solid #1f6feb; margin-left: 2px; white-space: nowrap; }
+#skillFilterRow {
+  width: 100%; display: none; align-items: center; flex-wrap: wrap;
+  gap: 6px; padding: 5px 14px; border-top: 1px solid #21262d;
+  background: #0d1117;
+}
+#skillFilterRow .skill-filter-label { font-size: 11px; color: #8b949e; flex-shrink: 0; }
+#skillFilterRow label { font-size: 11px; color: #c9d1d9; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+#skillFilterRow input[type=checkbox] { cursor: pointer; accent-color: #58a6ff; }
+
+/* type badge colours */
+.type-session_header { background: #2a1a3a; color: #d2a8ff; }
+.type-user           { background: #1f3a6e; color: #79c0ff; }
+.type-user_input     { background: #1a3a24; color: #56d364; }
+.type-assistant      { background: #3a2a00; color: #e3b341; }
+.type-tool_use       { background: #2d1f5e; color: #bc8cff; }
+.type-tool_result    { background: #1a2a1a; color: #7ee787; }
+.type-thinking       { background: #1a1a2e; color: #6e7681; }
+.type-system         { background: #1a1a1a; color: #484f58; }
+.type-subagent       { background: #3a1a16; color: #f78166; }
+.type-compact        { background: #1f1f2e; color: #a5b4fc; }
+
+/* ── Empty / loading ── */
+.state-msg { padding: 40px; text-align: center; color: #8b949e; font-size: 13px; }
+.loading-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 60px 40px; }
+.spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #30363d; border-top-color: #58a6ff; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Detail panel ── */
+/* ── Detail panel as drawer ── */
+.detail-panel {
+  position: fixed; top: 0; right: 0; height: 100vh; width: 38%;
+  display: flex; flex-direction: column;
+  background: #0d1117; border-left: 1px solid #30363d;
+  box-shadow: -4px 0 24px rgba(0,0,0,.6);
+  transform: translateX(100%); transition: transform .25s ease;
+  z-index: 200;
+}
+.detail-panel.open { transform: translateX(0); }
+.detail-backdrop {
+  display: none; position: fixed; inset: 0; z-index: 199;
+  background: rgba(0,0,0,.35);
+}
+.detail-backdrop.open { display: block; }
+.detail-panel-header {
+  background: #161b22; border-bottom: 1px solid #30363d;
+  padding: 7px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.detail-panel-title { flex: 1; font-size: 12px; font-weight: 600; color: #f0f6fc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-panel-ts { font-size: 10px; color: #8b949e; flex-shrink: 0; white-space: nowrap; }
+.detail-panel-close { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px; padding: 0 4px; flex-shrink: 0; }
+.detail-panel-close:hover { color: #f0f6fc; }
+.detail-panel-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px; }
+
+/* ── Detail content ── */
+.detail-loading { display: flex; align-items: center; gap: 10px; padding: 24px; color: #8b949e; font-size: 12px; }
+.detail-loading .spinner { width: 16px; height: 16px; border-width: 2px; }
+.detail-section { margin-bottom: 14px; }
+.detail-section-label { font-size: 10px; color: #8b949e; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.detail-tool-badge { font-size: 11px; background: #2d1f5e; color: #bc8cff; border-radius: 3px; padding: 1px 6px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.detail-error-badge { font-size: 11px; background: #3a0000; color: #f85149; border-radius: 3px; padding: 1px 6px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.detail-markdown { font-size: 13px; line-height: 1.65; color: #e1e4e8; }
+.detail-markdown p { margin-bottom: 8px; }
+.detail-markdown p:last-child { margin-bottom: 0; }
+.detail-markdown h1,.detail-markdown h2,.detail-markdown h3 { color: #f0f6fc; margin: 12px 0 6px; font-weight: 600; }
+.detail-markdown h1{font-size:16px}.detail-markdown h2{font-size:14px}.detail-markdown h3{font-size:13px}
+.detail-markdown code { background: #1c2129; color: #e3b341; border-radius: 3px; padding: 1px 5px; font-family: "SF Mono","Fira Mono",monospace; font-size: 12px; }
+.detail-markdown pre { background: #161b22; border: 1px solid #30363d; border-radius: 5px; padding: 10px 12px; overflow-x: auto; margin-bottom: 8px; }
+.detail-markdown pre code { background: none; color: inherit; padding: 0; border-radius: 0; font-size: 12px; }
+.detail-markdown ul,.detail-markdown ol { padding-left: 20px; margin-bottom: 8px; }
+.detail-markdown li { margin-bottom: 3px; }
+.detail-markdown blockquote { border-left: 3px solid #30363d; padding-left: 10px; color: #8b949e; margin-bottom: 8px; }
+.detail-markdown a { color: #58a6ff; }
+.detail-markdown strong { color: #f0f6fc; }
+.detail-markdown table { border-collapse: collapse; margin-bottom: 8px; font-size: 12px; }
+.detail-markdown th,.detail-markdown td { border: 1px solid #30363d; padding: 4px 8px; }
+.detail-markdown th { background: #161b22; color: #f0f6fc; }
+.detail-pre { background: #161b22; border: 1px solid #30363d; border-radius: 5px; padding: 10px 12px; font-size: 12px; font-family: "SF Mono","Fira Mono",monospace; color: #e1e4e8; white-space: pre-wrap; word-break: break-all; line-height: 1.55; overflow-y: auto; max-height: 400px; }
+.detail-code-block { background: #161b22; border: 1px solid #30363d; border-radius: 5px; overflow: hidden; max-height: 400px; overflow-y: auto; }
+.detail-code-block pre { margin: 0; padding: 10px 12px; font-size: 12px; line-height: 1.55; background: transparent !important; }
+.detail-code-block pre code { font-size: 12px; }
+.detail-diff { font-family: "SF Mono","Fira Mono",monospace; font-size: 12px; line-height: 1.55; border: 1px solid #30363d; border-radius: 5px; overflow: hidden; max-height: 500px; overflow-y: auto; }
+.diff-hunk { padding: 4px 10px; background: #1c2334; color: #8b949e; font-size: 11px; }
+.diff-line { padding: 1px 10px; white-space: pre-wrap; word-break: break-all; }
+.diff-add { background: rgba(63,185,80,.15); color: #7ee787; }
+.diff-add::before { content: "+ "; color: #3fb950; }
+.diff-del { background: rgba(248,81,73,.15); color: #ffa198; }
+.diff-del::before { content: "- "; color: #f85149; }
+.detail-thinking details { border: 1px solid #30363d; border-radius: 5px; overflow: hidden; }
+.detail-thinking summary { padding: 6px 10px; background: #1c2129; cursor: pointer; font-size: 11px; color: #8b949e; user-select: none; list-style: none; }
+.detail-thinking summary::before { content: "▶ "; font-size: 9px; }
+.detail-thinking details[open] summary::before { content: "▼ "; }
+.detail-thinking .thinking-body { padding: 10px 12px; font-size: 12px; font-family: "SF Mono","Fira Mono",monospace; color: #8b949e; white-space: pre-wrap; word-break: break-all; line-height: 1.55; max-height: 300px; overflow-y: auto; }
+.detail-terminal { background: #0d1117; border: 1px solid #30363d; border-radius: 5px; padding: 10px 12px; font-size: 12px; font-family: "SF Mono","Fira Mono",monospace; color: #7ee787; white-space: pre-wrap; word-break: break-all; line-height: 1.55; max-height: 400px; overflow-y: auto; }
+.detail-error { padding: 12px; background: #3a0000; border: 1px solid #f85149; border-radius: 5px; font-size: 12px; color: #ffa198; }
+.detail-reqresp-link { margin-top: 12px; padding-top: 10px; border-top: 1px solid #21262d; font-size: 11px; }
+.detail-reqresp-link a { color: #58a6ff; text-decoration: none; }
+.detail-reqresp-link a:hover { text-decoration: underline; }
+
+/* ── Report modal ── */
+.report-overlay {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,.6);
+  align-items: center; justify-content: center;
+}
+.report-overlay.open { display: flex; }
+.report-card {
+  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+  width: min(520px, 95vw); max-height: 90vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.report-card-hdr {
+  background: #0d1117; padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid #30363d; flex-shrink: 0;
+}
+.report-card-title { font-size: 14px; font-weight: 600; color: #f0f6fc; }
+.report-card-close {
+  background: none; border: none; color: #8b949e;
+  font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;
+}
+.report-card-close:hover { color: #f0f6fc; }
+.report-card-body {
+  padding: 16px; overflow-y: auto; flex: 1;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.report-card-footer {
+  padding: 12px 16px; border-top: 1px solid #30363d;
+  display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;
+}
+
+/* Mode selection */
+.report-mode-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.report-mode-option {
+  border: 2px solid #30363d; border-radius: 6px;
+  padding: 14px; cursor: pointer; transition: all .15s;
+  background: #0d1117;
+}
+.report-mode-option:hover { border-color: #58a6ff; }
+.report-mode-option.selected { border-color: #388bfd; background: #0d2344; }
+.report-mode-option-title { font-size: 13px; font-weight: 600; color: #f0f6fc; margin-bottom: 6px; }
+.report-mode-option-desc { font-size: 11px; color: #8b949e; line-height: 1.5; }
+
+/* Custom prompt */
+.report-prompt-label { font-size: 11px; color: #8b949e; margin-bottom: 6px; }
+.report-prompt-input {
+  width: 100%; font-size: 12px; color: #c9d1d9;
+  background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+  padding: 8px 10px; resize: vertical; min-height: 70px; font-family: inherit;
+}
+.report-prompt-input:focus { outline: none; border-color: #58a6ff; }
+.report-prompt-input::placeholder { color: #4d5566; }
+
+/* Buttons */
+.report-btn {
+  background: #21262d; color: #e1e4e8; border: 1px solid #30363d;
+  border-radius: 5px; padding: 6px 16px; font-size: 12px; cursor: pointer;
+}
+.report-btn:hover { background: #30363d; }
+.report-btn-primary {
+  background: #1f6feb; color: #fff; border: none;
+  border-radius: 5px; padding: 6px 16px; font-size: 12px; cursor: pointer;
+}
+.report-btn-primary:hover { background: #388bfd; }
+.report-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Loading state */
+.report-loading {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 40px 20px; text-align: center;
+}
+.report-loading-spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid #30363d; border-top-color: #58a6ff;
+  animation: spin .7s linear infinite;
+}
+.report-loading-text { font-size: 13px; color: #c9d1d9; }
+.report-loading-sub { font-size: 11px; color: #8b949e; }
+
+/* Result state */
+.report-result { display: flex; flex-direction: column; gap: 14px; }
+.report-result-meta {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 11px; color: #8b949e; padding-bottom: 12px; border-bottom: 1px solid #30363d;
+}
+.report-result-badge {
+  background: #21262d; color: #e1e4e8; border: 1px solid #30363d;
+  border-radius: 4px; padding: 2px 8px; font-size: 10px;
+}
+.report-result-badge.primary { background: #1f6feb; border-color: #1f6feb; }
+.report-link-card {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.report-link-title { font-size: 14px; font-weight: 600; color: #f0f6fc; }
+.report-link-desc { font-size: 12px; color: #8b949e; line-height: 1.5; }
+.report-link-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.report-link-actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.report-error { padding: 16px; background: #3a0000; border: 1px solid #f85149; border-radius: 6px; font-size: 12px; color: #ffa198; }
+body.embedded .topbar { display: none; }
+body.embedded .main { border-top: 0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Session Tree</h1>
+  <select id="selProject" class="field" style="max-width:180px">
+    <option value="">-- project --</option>
+  </select>
+  <select id="selSession" class="field" style="max-width:300px">
+    <option value="">-- session --</option>
+  </select>
+  <button class="btn" id="btnToggleAll">全部折叠</button>
+  <button class="btn" id="btnReport" title="生成会话分析报告">生成报告</button>
+  <span class="badge-count" id="nodeCount"></span>
+  <div class="nav-links">
+    <a class="nav-link" id="navReqResp" href="req-resp.html">HTTP 记录</a>
+    <a class="nav-link" href="claude-log.html">Claude Log</a>
+  </div>
+  <div id="skillFilterRow">
+    <span class="skill-filter-label">Skill:</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="tree-section">
+    <div class="tree-body" id="treeBody">
+      <div class="state-msg">选择一个 session 以加载</div>
+    </div>
+  </div>
+  <div id="ganttOverlay" class="gantt-overlay"></div>
+  <div class="detail-backdrop" id="detailBackdrop"></div>
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-panel-header">
+      <span class="detail-panel-title" id="detailTitle">—</span>
+      <span class="detail-panel-ts" id="detailTs"></span>
+      <button class="detail-panel-close" id="detailClose">✕</button>
+    </div>
+    <div class="detail-panel-body" id="detailBody"></div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let currentSessionId = null;
+let rowMeta = [];
+let rowEls   = [];   // rowEls[i]   = <div.tree-row>  — O(1) access, no querySelector
+let ganttEls = {};   // ganttEls[i] = <div.gantt-row-bar> — rebuilt on each overlay render
+let focusedRowIdx = -1;
+let ganttData = null;
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────
+(async function init() {
+  if (new URLSearchParams(location.search).get('embedded') === '1') {
+    document.body.classList.add('embedded');
+  }
+  await loadProjects();
+  const sid = new URLSearchParams(location.search).get('sessionId');
+  if (sid) await preselectSession(sid);
+  document.getElementById('selProject').addEventListener('change', onProjectChange);
+  document.getElementById('selSession').addEventListener('change', onSessionChange);
+  document.getElementById('btnToggleAll').addEventListener('click', toggleAll);
+  document.getElementById('btnReport').addEventListener('click', generateSessionReport);
+  document.getElementById('detailClose').addEventListener('click', closeDetail);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+  document.getElementById('detailBackdrop').addEventListener('click', closeDetail);
+
+  // Sync gantt rows scroll with tree-body
+  document.getElementById('treeBody').addEventListener('scroll', () => {
+    const overlay = document.getElementById('ganttOverlay');
+    if (overlay._rowsDiv) overlay._rowsDiv.scrollTop = document.getElementById('treeBody').scrollTop;
+  });
+  if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
+})();
+
+async function loadProjects() {
+  const projects = await fetch('/api/projects').then(r => r.json());
+  const sel = document.getElementById('selProject');
+  for (const p of projects) {
+    const opt = document.createElement('option');
+    opt.value = p.projectDir;
+    opt.textContent = decodeURIComponent(p.projectDir.replace(/-/g, '/'));
+    opt.dataset.sessions = JSON.stringify(p.sessions);
+    sel.appendChild(opt);
+  }
+}
+
+async function preselectSession(sid) {
+  const selP = document.getElementById('selProject');
+  const selS = document.getElementById('selSession');
+  for (const opt of selP.options) {
+    if (!opt.dataset.sessions) continue;
+    const sessions = JSON.parse(opt.dataset.sessions);
+    if (sessions.find(s => s.id === sid)) {
+      selP.value = opt.value;
+      populateSessions(sessions);
+      selS.value = sid;
+      await loadTree(sid);
+      // Check report status after loading
+      await checkReportStatus(sid);
+      return;
+    }
+  }
+}
+
+function onProjectChange() {
+  const opt = document.getElementById('selProject').selectedOptions[0];
+  if (opt?.dataset.sessions) populateSessions(JSON.parse(opt.dataset.sessions));
+}
+
+function populateSessions(sessions) {
+  const sel = document.getElementById('selSession');
+  sel.innerHTML = '<option value="">-- session --</option>';
+  for (const s of sessions) {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    const ts = s.lastTimestamp ? new Date(s.lastTimestamp).toLocaleString() : '';
+    opt.textContent = `${s.id.slice(0,8)}… ${ts}`;
+    sel.appendChild(opt);
+  }
+}
+
+async function onSessionChange() {
+  const sid = document.getElementById('selSession').value;
+  if (!sid) return;
+  history.replaceState(null, '', `?sessionId=${sid}`);
+  closeDetail();
+  currentSessionReportInfo = null;  // Reset report info on session change
+  updateReportButtonText();  // Reset button text to default
+  await loadTree(sid);
+  // Check report status after loading tree
+  await checkReportStatus(sid);
+}
+
+async function loadTree(sid) {
+  currentSessionId = sid;
+  const navReqResp = document.getElementById('navReqResp');
+  if (navReqResp) navReqResp.href = `req-resp.html?session=${encodeURIComponent(sid)}`;
+  rowEls = []; ganttEls = {};
+  const body = document.getElementById('treeBody');
+  body.innerHTML = `<div class="loading-wrap"><div class="spinner"></div></div>`;
+  document.getElementById('nodeCount').textContent = '';
+  const sfRow = document.getElementById('skillFilterRow');
+  sfRow.style.display = 'none';
+  while (sfRow.children.length > 1) sfRow.removeChild(sfRow.lastChild);
+  try {
+    const res = await fetch(`/api/session-gantt/${sid}`);
+    if (!res.ok) { body.innerHTML = `<div class="state-msg">错误 ${res.status}</div>`; return; }
+    ganttData = await res.json();
+    renderTree(ganttData.nodes || []);
+    document.getElementById('btnToggleAll').textContent = '全部折叠';
+  } catch (e) {
+    body.innerHTML = `<div class="state-msg">加载失败: ${e.message}</div>`;
+  }
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const BARRIER_TYPES = new Set(['user', 'assistant', 'subagent']);
+const DETAIL_TYPES  = new Set(['user', 'assistant', 'tool_use', 'tool_result', 'thinking', 'system', 'user_input']);
+
+// ── Skill filter ───────────────────────────────────────────────────────────
+function extractSessionSkills(nodes) {
+  // nodes is flat — no recursion needed
+  const skills = new Set();
+  for (const n of nodes) {
+    if (n.type === 'tool_use' && n.content?.tool_name === 'Skill') {
+      const name = n.content?.input?.skill;
+      if (name) skills.add(name);
+    }
+  }
+  return [...skills].sort();
+}
+
+function applySkillFilter() {
+  // Clear all existing skill tags
+  document.querySelectorAll('.row-skill-tag').forEach(el => el.remove());
+
+  const selected = new Set(
+    [...document.querySelectorAll('#skillFilterRow input[type=checkbox]:checked')].map(cb => cb.value)
+  );
+  if (!selected.size) return;
+
+  // Find matching tool_use rows and propagate up to (including) nearest user ancestor
+  for (let i = 0; i < rowMeta.length; i++) {
+    const { node } = rowMeta[i];
+    if (node.type !== 'tool_use' || node.content?.tool_name !== 'Skill') continue;
+    const skillName = node.content?.input?.skill;
+    if (!skillName || !selected.has(skillName)) continue;
+
+    // Walk up from this node to the nearest user ancestor (inclusive)
+    let cur = i;
+    while (cur !== null) {
+      addSkillTag(cur, skillName);
+      if (rowMeta[cur].node.type === 'user') break;
+      cur = rowMeta[cur].parentIdx;
+    }
+  }
+}
+
+function addSkillTag(rowIdx, skillName) {
+  const row = rowEls[rowIdx];
+  if (!row) return;
+  // Avoid duplicates for the same skill on the same row
+  const existing = [...row.querySelectorAll('.row-skill-tag')].map(el => el.textContent);
+  if (existing.includes(skillName)) return;
+  const pill = document.createElement('span');
+  pill.className = 'row-skill-tag';
+  pill.textContent = skillName;
+  pill.title = `Skill: ${skillName}`;
+  // Insert before .row-dur if present, otherwise before .row-ts
+  const anchor = row.querySelector('.row-dur') || row.querySelector('.row-ts');
+  anchor ? row.insertBefore(pill, anchor) : row.appendChild(pill);
+}
+
+function renderSkillFilter(skills) {
+  const row = document.getElementById('skillFilterRow');
+  // Keep the label span, remove checkboxes
+  while (row.children.length > 1) row.removeChild(row.lastChild);
+  if (!skills.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  for (const skill of skills) {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = skill;
+    cb.addEventListener('change', applySkillFilter);
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(skill));
+    row.appendChild(label);
+  }
+}
+
+let sessionStartMs = 0;  // epoch ms of first timestamped node in current session
+
+// Tool emoji map
+const TOOL_EMOJIS = {
+  Bash: '⚡', Read: '📖', Write: '📝', Edit: '✏️', MultiEdit: '✏️',
+  Glob: '📂', Grep: '🔍', LS: '📁', Agent: '🤖', Skill: '💡',
+  WebFetch: '🌐', WebSearch: '🌐',
+  TodoWrite: '📋', TaskCreate: '📋', TaskUpdate: '🔄', TaskList: '📋',
+  TaskGet: '📋', TaskStop: '⏹️', TaskOutput: '📤',
+  AskUserQuestion: '❓', SendMessage: '💬',
+  TeamCreate: '👥', TeamDelete: '👥',
+  EnterPlanMode: '📐', ExitPlanMode: '🚪',
+};
+const toolEmoji = name => TOOL_EMOJIS[name] || '🔧';
+
+// Per-type human-readable title from node content
+function nodeTitle(node) {
+  const c = node.content || {};
+  const items = c.items || [];
+  const firstText = () => items.map(i => i.text || '').join(' ').trim().slice(0, 80);
+  switch (node.type) {
+    case 'user':
+    case 'user_input': return firstText() || node.title || '';
+    case 'assistant':  return firstText() || node.title || '';
+    case 'thinking': {
+      const t = (c.thinking || '').trim().slice(0, 80);
+      return t || node.title || '';
+    }
+    case 'tool_use': {
+      const name = c.tool_name || node.title || 'tool';
+      const inp = c.input || {};
+      const firstVal = Object.values(inp)[0];
+      const preview = firstVal != null ? String(firstVal).slice(0, 40).replace(/\n/g, ' ') : '';
+      return `${toolEmoji(name)} ${preview ? `${name}(${preview})` : name}`;
+    }
+    case 'tool_result': {
+      const text = extractOutputText(c.output);
+      const prefix = c.is_error ? '⚠ ' : '';
+      return prefix + text.slice(0, 80) || node.title || '';
+    }
+    case 'system': {
+      if (c.compact_trigger) {
+        const trigger = c.compact_trigger;  // "manual" | "auto"
+        const tokens = c.compact_pre_tokens ? ` (${(c.compact_pre_tokens/1000).toFixed(0)}k tokens)` : '';
+        return `🔴 /compact [${trigger}]${tokens}`;
+      }
+      return node.title ?? node.label ?? '';
+    }
+    default: return node.title ?? node.label ?? '';
+  }
+}
+
+// Format timestamp as MM-DD HH:mm:ss in Beijing time (UTC+8)
+function fmtAbsTime(ts) {
+  if (!ts) return '';
+  const d = new Date(new Date(ts).getTime() + 8 * 3600 * 1000);
+  const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  const ss = String(d.getUTCSeconds()).padStart(2, '0');
+  return `${mo}-${dd} ${hh}:${mm}:${ss}`;
+}
+
+// Format timestamp as relative offset from sessionStartMs  (+Xm Ys or +Xs)
+function fmtRelTime(ts) {
+  if (!ts || !sessionStartMs) return ts ? ts.slice(11, 19) : '';
+  const ms = new Date(ts).getTime() - sessionStartMs;
+  if (ms < 0) return ts.slice(11, 19);
+  const s = Math.round(ms / 1000);
+  const m = Math.floor(s / 60);
+  const rs = s % 60;
+  if (m > 0) return `+${m}m ${rs}s`;
+  return `+${s}s`;
+}
+
+// ── Gantt overlay colors ──────────────────────────────────────────────────
+const GANTT_COLORS = {
+  session_header: '#7d4ecf', user: '#1f6feb', user_input: '#3fb950',
+  assistant: '#9e6a03', tool_use: '#8957e5', tool_result: '#3fb950',
+  thinking: '#30363d', system: '#21262d', subagent: '#e85c3f', compact: '#6366f1',
+};
+function ganttColor(type) { return GANTT_COLORS[type] || '#58a6ff'; }
+
+// Extract plain text from JsonRenderer output field (BashOutput, FileOutput, string, etc.)
+function extractOutputText(output) {
+  if (output == null) return '';
+  if (typeof output === 'string') return output;
+  if (typeof output === 'object') {
+    if (typeof output.content === 'string') return output.content;
+    // Nested object (e.g. FileOutput with sub-fields)
+    const vals = Object.values(output).filter(v => typeof v === 'string');
+    if (vals.length) return vals.join('\n');
+    return JSON.stringify(output, null, 2);
+  }
+  return String(output);
+}
+
+function renderTree(nodes) {
+  // nodes is a pre-computed flat array from the backend —
+  // depth/parentIdx/childIdxs/durationMs/tags/startMs/endMs are already set.
+  sessionStartMs = ganttData?.sessionStartMs || 0;
+  rowMeta = [];
+  rowEls  = [];
+  focusedRowIdx = -1;
+
+  for (const n of nodes) {
+    rowMeta.push({
+      node: n,
+      depth:     n.depth,
+      parentIdx: n.parentIdx ?? null,
+      collapsed: BARRIER_TYPES.has(n.type),
+      childIdxs: n.childIdxs || [],
+      durationMs: n.durationMs || 0,
+      tags:  n.tags || [],
+      visible: true,
+    });
+  }
+
+  // Build all DOM rows in one DocumentFragment — O(n), single reflow
+  const body = document.getElementById('treeBody');
+  body.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < rowMeta.length; i++) {
+    const { node, depth, durationMs, tags } = rowMeta[i];
+    const el = buildRow(node, depth, i, durationMs, tags);
+    el.dataset.rowIdx = i;
+    rowEls.push(el);
+    frag.appendChild(el);
+  }
+  body.appendChild(frag);
+
+  // Apply initial collapse in one forward pass — O(n), zero renderGanttOverlay calls
+  _applyInitialCollapse();
+
+  document.getElementById('nodeCount').textContent = `${rowMeta.length} 个节点`;
+  renderSkillFilter(extractSessionSkills(nodes));
+  if (rowMeta.length > 0) selectRow(0);
+  renderGanttOverlay();  // called exactly once
+}
+
+function _applyInitialCollapse() {
+  // Parent always precedes children in the flat DFS array, so one forward pass suffices.
+  for (let i = 0; i < rowMeta.length; i++) {
+    const m = rowMeta[i];
+    const arrow = rowEls[i].querySelector('.row-arrow');
+    if (arrow && !arrow.classList.contains('leaf')) {
+      m.collapsed ? arrow.classList.remove('open') : arrow.classList.add('open');
+    }
+    if (m.parentIdx === null) {
+      m.visible = true;
+    } else {
+      const p = rowMeta[m.parentIdx];
+      m.visible = p.visible && !p.collapsed;
+      if (!m.visible) rowEls[i].classList.add('hidden');
+    }
+  }
+}
+
+function buildRow(node, depth, idx, durationMs = 0, tags = []) {
+  const row = document.createElement('div');
+  row.className = 'tree-row';
+
+  const indent = document.createElement('div');
+  indent.className = 'row-indent';
+  indent.style.width = `${depth * 14 + 6}px`;
+  row.appendChild(indent);
+
+  const hasChildren = (node.childIdxs || []).length > 0;
+  const arrow = document.createElement('div');
+  arrow.className = `row-arrow${hasChildren ? '' : ' leaf'}`;
+  if (hasChildren) {
+    arrow.textContent = '▶';
+    arrow.addEventListener('click', e => { e.stopPropagation(); toggleCollapse(idx); });
+  }
+  row.appendChild(arrow);
+
+  const badge = document.createElement('span');
+  badge.className = `type-badge type-${node.type}`;
+  badge.textContent = node.type;
+  row.appendChild(badge);
+
+  if (node.index != null) {
+    const idx = document.createElement('span');
+    idx.className = 'row-index';
+    idx.textContent = `#${node.index}`;
+    row.appendChild(idx);
+  }
+
+  const title = document.createElement('div');
+  title.className = 'row-title';
+  const lbl = nodeTitle(node);
+  title.textContent = lbl;
+  title.title = lbl;
+  row.appendChild(title);
+
+  for (const tag of tags) {
+    const pill = document.createElement('span');
+    pill.className = 'row-tag';
+    pill.textContent = tag;
+    pill.title = tag === '🤖' ? '包含 Agent 调用' : '包含 /compact';
+    row.appendChild(pill);
+  }
+
+  if (durationMs > 0) {
+    const dur = document.createElement('span');
+    dur.className = 'row-dur';
+    dur.textContent = fmtDurationMs(durationMs);
+    row.appendChild(dur);
+  }
+
+  if (node.timestamp) {
+    const ts = document.createElement('div');
+    ts.className = 'row-ts';
+    ts.innerHTML = `<span class="row-ts-abs">${fmtAbsTime(node.timestamp)}</span><br><span class="row-ts-rel">${fmtRelTime(node.timestamp)}</span>`;
+    row.appendChild(ts);
+  }
+
+  row.style.cursor = 'pointer';
+  row.addEventListener('click', e => {
+    if (e.target.classList.contains('row-arrow')) return;
+    selectRow(idx);
+    openDetail(node);
+  });
+  row.addEventListener('mouseenter', () => { ganttEls[idx]?.classList.add('hovered'); });
+  row.addEventListener('mouseleave', () => { ganttEls[idx]?.classList.remove('hovered'); });
+  return row;
+}
+
+function selectRow(idx) {
+  if (focusedRowIdx >= 0) rowEls[focusedRowIdx]?.classList.remove('selected');
+  rowEls[idx]?.classList.add('selected');
+  focusedRowIdx = idx;
+}
+
+function focusRow(idx) {
+  if (idx < 0 || idx >= rowMeta.length) return;
+  selectRow(idx);
+  rowEls[idx]?.scrollIntoView({ block: 'nearest' });
+  openDetail(rowMeta[idx].node);
+}
+
+function isVisible(idx) { return !!rowMeta[idx]?.visible; }
+
+// ── Keyboard navigation ────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Don't hijack input focus inside detail panel
+  if (e.target.closest('.detail-panel-body, input, textarea, select')) return;
+  if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  if (rowMeta.length === 0) return;
+  e.preventDefault();
+
+  const cur = focusedRowIdx;
+
+  if (e.key === 'ArrowDown') {
+    for (let i = cur + 1; i < rowMeta.length; i++) {
+      if (isVisible(i)) { focusRow(i); return; }
+    }
+  }
+
+  if (e.key === 'ArrowUp') {
+    for (let i = cur - 1; i >= 0; i--) {
+      if (isVisible(i)) { focusRow(i); return; }
+    }
+  }
+
+  if (e.key === 'ArrowLeft') {
+    if (cur < 0) return;
+    const parentIdx = rowMeta[cur].parentIdx;
+    if (parentIdx !== null && isVisible(parentIdx)) focusRow(parentIdx);
+  }
+
+  if (e.key === 'ArrowRight') {
+    if (cur < 0) return;
+    const m = rowMeta[cur];
+    if (m.childIdxs.length === 0) return;
+    // Expand if collapsed
+    if (m.collapsed) setCollapsed(cur, false);
+    // Jump to first visible child
+    for (const childIdx of m.childIdxs) {
+      if (isVisible(childIdx)) { focusRow(childIdx); return; }
+    }
+  }
+});
+
+// ── Collapse/expand ────────────────────────────────────────────────────────
+function toggleCollapse(idx) { setCollapsed(idx, !rowMeta[idx].collapsed); }
+
+function fmtDurationMs(ms) {
+  if (ms <= 0) return '';
+  if (ms < 1000) return `${ms}ms`;
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(s < 10 ? 1 : 0)}s`;
+  const m = Math.floor(s / 60), rs = Math.round(s % 60);
+  return rs > 0 ? `${m}m ${rs}s` : `${m}m`;
+}
+
+function renderGanttOverlay() {
+  const overlay = document.getElementById('ganttOverlay');
+  if (!overlay) return;
+
+  const minMs = ganttData?.sessionStartMs;
+  const maxMs = ganttData?.sessionMaxMs;
+  if (!minMs || minMs === maxMs) {
+    overlay.innerHTML = '<div style="padding:8px;color:#484f58;font-size:11px">无时序数据</div>';
+    ganttEls = {};
+    return;
+  }
+  const spanMs = maxMs - minMs || 1;
+  const overlayW = overlay.clientWidth || 280;
+  const pct    = ms => ((ms - minMs) / spanMs * 100).toFixed(4) + '%';
+  const wPct   = ms => (ms / spanMs * 100);
+  const wPx    = ms => (ms / spanMs) * overlayW;
+
+  const rowsDiv = document.createElement('div');
+  rowsDiv.className = 'gantt-rows';
+  const newGanttEls = {};
+
+  for (let i = 0; i < rowMeta.length; i++) {
+    if (!rowMeta[i].visible) continue;
+    const node = rowMeta[i].node;
+    const div = document.createElement('div');
+    div.className = 'gantt-row-bar';
+    div.dataset.rowIdx = i;
+    newGanttEls[i] = div;
+
+    const startMs   = node.startMs;
+    const durationMs = Math.max(0, (node.endMs || startMs) - startMs);
+    if (startMs) {
+      const color = ganttColor(node.type);
+      if (durationMs > 0) {
+        const bar = document.createElement('div');
+        bar.className = 'gantt-bar';
+        bar.style.left = pct(startMs);
+        const wp = wPct(durationMs);
+        bar.style.width = wp < 0.1 ? '0.1%' : wp.toFixed(4) + '%';
+        bar.style.background = color;
+        bar.title = `${node.type}: ${fmtDurationMs(durationMs)}`;
+        if (wPx(durationMs) > 48) {
+          const lbl = document.createElement('span');
+          lbl.className = 'gantt-bar-label';
+          lbl.textContent = fmtDurationMs(durationMs);
+          bar.appendChild(lbl);
+        }
+        div.appendChild(bar);
+      } else {
+        const marker = document.createElement('div');
+        marker.className = 'gantt-marker';
+        marker.style.left = pct(startMs);
+        marker.style.background = color;
+        div.appendChild(marker);
+      }
+    }
+    rowsDiv.appendChild(div);
+  }
+
+  const axisDiv = document.createElement('div');
+  axisDiv.className = 'gantt-axis';
+  const tickCount = Math.max(2, Math.floor(overlayW / 80));
+  for (let i = 0; i <= tickCount; i++) {
+    const frac = i / tickCount;
+    const tick = document.createElement('div');
+    tick.className = 'gantt-tick';
+    tick.style.left = (frac * 100).toFixed(2) + '%';
+    tick.textContent = fmtRelTime(new Date(minMs + spanMs * frac).toISOString());
+    axisDiv.appendChild(tick);
+  }
+
+  overlay.innerHTML = '';
+  overlay.appendChild(rowsDiv);
+  overlay.appendChild(axisDiv);
+  ganttEls = newGanttEls;
+
+  const treeBody = document.getElementById('treeBody');
+  rowsDiv.scrollTop = treeBody.scrollTop;
+  overlay._rowsDiv = rowsDiv;
+}
+
+function setCollapsed(idx, collapsed) {
+  rowMeta[idx].collapsed = collapsed;
+  const arrow = rowEls[idx]?.querySelector('.row-arrow');
+  if (arrow && !arrow.classList.contains('leaf')) {
+    collapsed ? arrow.classList.remove('open') : arrow.classList.add('open');
+  }
+  setDescendantsVisible(idx, !collapsed);
+  renderGanttOverlay();
+}
+
+function setDescendantsVisible(parentIdx, visible) {
+  for (const childIdx of rowMeta[parentIdx].childIdxs) {
+    const m = rowMeta[childIdx];
+    const arrow = rowEls[childIdx]?.querySelector('.row-arrow');
+    if (visible) {
+      rowEls[childIdx]?.classList.remove('hidden');
+      m.visible = true;
+      if (BARRIER_TYPES.has(m.node.type) && m.childIdxs.length > 0) {
+        m.collapsed = true;
+        arrow?.classList.remove('open');
+      } else {
+        if (arrow && !arrow.classList.contains('leaf')) {
+          m.collapsed ? arrow.classList.remove('open') : arrow.classList.add('open');
+        }
+        if (!m.collapsed) setDescendantsVisible(childIdx, true);
+      }
+    } else {
+      rowEls[childIdx]?.classList.add('hidden');
+      m.visible = false;
+      setDescendantsVisible(childIdx, false);
+    }
+  }
+}
+
+function expandAll() {
+  for (let i = 0; i < rowMeta.length; i++) {
+    const m = rowMeta[i];
+    m.collapsed = false;
+    m.visible = true;
+    rowEls[i]?.classList.remove('hidden');
+    const arrow = rowEls[i]?.querySelector('.row-arrow');
+    if (arrow && !arrow.classList.contains('leaf')) arrow.classList.add('open');
+  }
+  renderGanttOverlay();
+}
+
+function collapseAll() {
+  for (let i = 0; i < rowMeta.length; i++) {
+    const m = rowMeta[i];
+    if (m.depth === 0) {
+      if (m.childIdxs.length > 0) {
+        m.collapsed = true;
+        const arrow = rowEls[i]?.querySelector('.row-arrow');
+        if (arrow && !arrow.classList.contains('leaf')) arrow.classList.remove('open');
+      }
+    } else {
+      m.visible = false;
+      rowEls[i]?.classList.add('hidden');
+    }
+  }
+  renderGanttOverlay();
+}
+
+function toggleAll() {
+  const btn = document.getElementById('btnToggleAll');
+  const anyExpanded = rowMeta.some(m => m.depth === 0 && m.childIdxs.length > 0 && !m.collapsed);
+  if (anyExpanded) {
+    collapseAll();
+    btn.textContent = '全部展开';
+  } else {
+    expandAll();
+    btn.textContent = '全部折叠';
+  }
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────
+const detailPanel = document.getElementById('detailPanel');
+const detailTitleEl = document.getElementById('detailTitle');
+const detailTsEl = document.getElementById('detailTs');
+const detailBodyEl = document.getElementById('detailBody');
+
+const detailBackdrop = document.getElementById('detailBackdrop');
+
+function closeDetail() {
+  detailPanel.classList.remove('open');
+  detailBackdrop.classList.remove('open');
+  if (focusedRowIdx >= 0) rowEls[focusedRowIdx]?.classList.remove('selected');
+}
+
+function nodeDetailId(node) {
+  const c = node.content || {};
+  switch (node.type) {
+    case 'tool_use':    return `tool_use-${c.tool_use_id}`;
+    case 'tool_result': return `tool_result-${c.tool_use_id}`;
+    case 'assistant':   return `assistant-${node.uuid}`;
+    case 'user':
+    case 'user_input':  return `user_input-${node.uuid}`;
+    default:            return `${node.type}-${node.uuid || node.index}`;
+  }
+}
+
+// Types whose content is fully available in node.content — skip API call
+const FALLBACK_ONLY_TYPES = new Set(['thinking', 'system', 'session_header']);
+
+async function openDetail(node) {
+  if (!currentSessionId) return;
+  const lbl = nodeTitle(node).slice(0, 60);
+  detailTitleEl.textContent = `${node.type}  ${lbl}`;
+  detailTsEl.textContent = node.timestamp ? fmtAbsTime(node.timestamp) : '';
+  detailPanel.classList.add('open');
+  detailBackdrop.classList.add('open');
+
+  if (FALLBACK_ONLY_TYPES.has(node.type)) {
+    renderFallback(node);
+    return;
+  }
+
+  detailBodyEl.innerHTML = `<div class="detail-loading"><div class="spinner"></div><span>加载…</span></div>`;
+  try {
+    const id = nodeDetailId(node);
+    const res = await fetch(`/api/session-entry/${currentSessionId}/${encodeURIComponent(id)}`);
+    if (!res.ok) { renderFallback(node); return; }
+    renderDetail(await res.json(), node);
+  } catch { renderFallback(node); }
+}
+
+function renderFallback(node) {
+  const c = node.content || {};
+  const toolName = c.tool_name || '';
+  const lbl = nodeTitle(node);
+  let html = '';
+  if (node.type === 'assistant') {
+    const text = (c.items || []).map(i => i.text || '').join('\n') || lbl;
+    html = renderSection('消息内容', renderMd(text));
+  } else if (node.type === 'tool_use') {
+    html = renderSection(`<span class="detail-tool-badge">${esc(toolName)}</span>`,
+      renderCode(JSON.stringify(c.input || {}, null, 2), 'json'));
+  } else if (node.type === 'tool_result') {
+    const out = extractOutputText(c.output);
+    const errBadge = c.is_error ? ' <span class="detail-error-badge">ERROR</span>' : '';
+    html = renderSection(`<span class="detail-tool-badge">${esc(toolName)}</span>${errBadge}`,
+      renderToolResult(toolName, {}, out, c.is_error));
+  } else if (node.type === 'user' || node.type === 'user_input') {
+    const text = (c.items || []).map(i => i.text || '').join('\n') || lbl;
+    html = renderSection('用户输入', renderMd(text));
+  } else if (node.type === 'thinking') {
+    const thinkText = c.thinking || lbl || '';
+    html = `<div class="detail-thinking"><details open><summary>思考过程</summary><div class="thinking-body">${esc(thinkText)}</div></details></div>`;
+  } else if (node.type === 'system') {
+    html = renderSection(esc(node.title || 'System'), renderPre(
+      JSON.stringify(c, null, 2).replace(/^"(.*)"$/, '$1')
+    ));
+  }
+  if (!html) {
+    const content = node.content || node;
+    html = renderSection(esc(node.title || node.type), renderCode(JSON.stringify(content, null, 2), 'json'));
+  }
+  detailBodyEl.innerHTML = html;
+  applySyntax();
+}
+
+function renderDetail(data, node) {
+  if (data.timestamp) detailTsEl.textContent = fmtAbsTime(data.timestamp);
+  let html = '';
+  if (data.type === 'assistant') {
+    for (const item of (data.items || [])) {
+      if (item.kind === 'text') html += renderSection('助手消息', renderMd(item.text));
+      else if (item.kind === 'thinking') html += `<div class="detail-section detail-thinking"><details><summary>思考过程</summary><div class="thinking-body">${esc(item.text)}</div></details></div>`;
+      else if (item.kind === 'tool_use') html += renderSection(`<span class="detail-tool-badge">${esc(item.name)}</span>`, renderToolInput(item.name, item.input || {}));
+    }
+    if (!html) html = '<div style="padding:20px;color:#8b949e">无内容</div>';
+    if (data.messageId && currentSessionId) {
+      const date = (data.timestamp || '').slice(0, 10);
+      const url = `req-resp.html?q=${encodeURIComponent(data.messageId)}&session=${encodeURIComponent(currentSessionId)}${date ? '&date=' + encodeURIComponent(date) : ''}`;
+      html += `<div class="detail-reqresp-link"><a href="${url}" target="_blank">🔗 查看 HTTP 记录 ↗</a></div>`;
+    }
+  } else if (data.type === 'tool_use') {
+    html = renderSection(`<span class="detail-tool-badge">${esc(data.toolName || '')}</span>`, renderToolInput(data.toolName || '', data.input || {}));
+  } else if (data.type === 'tool_result') {
+    const errBadge = data.isError ? ' <span class="detail-error-badge">ERROR</span>' : '';
+    html = renderSection(`<span class="detail-tool-badge">${esc(data.toolName || '')}</span>${errBadge}`,
+      renderToolResult(data.toolName || '', data.toolInput || {}, data.content || '', data.isError));
+  } else if (data.type === 'user_input') {
+    html = renderSection('用户输入', renderMd(data.text || ''));
+  }
+  detailBodyEl.innerHTML = html || `<div style="padding:20px;color:#8b949e">无内容</div>`;
+  applySyntax();
+}
+
+// ── render helpers ─────────────────────────────────────────────────────────
+function renderSection(label, content) {
+  return `<div class="detail-section"><div class="detail-section-label">${label}</div>${content}</div>`;
+}
+function renderMd(text) {
+  if (!text) return '<div class="detail-pre" style="color:#8b949e">(空)</div>';
+  try { return `<div class="detail-markdown">${marked.parse(String(text), {breaks:true,gfm:true})}</div>`; }
+  catch { return `<div class="detail-pre">${esc(text)}</div>`; }
+}
+function renderPre(text) { return `<div class="detail-pre">${esc(text||'')}</div>`; }
+function renderCode(code, lang) {
+  return `<div class="detail-code-block"><pre><code class="language-${lang}">${esc(code)}</code></pre></div>`;
+}
+function renderTerminal(text) { return `<div class="detail-terminal">${esc(text||'')}</div>`; }
+function renderToolInput(name, input) {
+  if (name === 'Edit' || name === 'MultiEdit') return renderEditDiff(input);
+  if (name === 'Bash') return `<div style="font-size:11px;color:#8b949e;margin-bottom:6px">$ Bash</div>` + renderTerminal(input.command || JSON.stringify(input, null, 2));
+  if (name === 'Write') {
+    let h = input.file_path ? `<div style="font-size:11px;color:#8b949e;margin-bottom:6px">📄 ${esc(input.file_path)}</div>` : '';
+    return h + renderCode(input.content || JSON.stringify(input, null, 2), detectLang(input.file_path || ''));
+  }
+  return renderCode(JSON.stringify(input, null, 2), 'json');
+}
+function renderToolResult(name, input, content, isError) {
+  if (isError) return `<div class="detail-error">${esc(content)}</div>`;
+  if (name === 'Edit' || name === 'MultiEdit') {
+    let h = input.file_path ? `<div style="font-size:11px;color:#8b949e;margin-bottom:6px">📝 ${esc(input.file_path)}</div>` : '';
+    if (input.old_string !== undefined) h += renderEditDiff(input);
+    return h + `<div style="font-size:11px;color:#3fb950;margin-top:6px">✓ ${esc(content || '操作成功')}</div>`;
+  }
+  if (name === 'Read') {
+    let h = input.file_path ? `<div style="font-size:11px;color:#8b949e;margin-bottom:6px">📄 ${esc(input.file_path)}</div>` : '';
+    return h + renderCode(content, detectLang(input.file_path || ''));
+  }
+  if (name === 'Bash') return renderTerminal(content);
+  if (name === 'WebFetch' || name === 'WebSearch') return renderMd(content);
+  if (name === 'Glob' || name === 'Grep' || name === 'LS') return renderPre(content);
+  return renderMd(content);
+}
+function renderEditDiff(input) {
+  const fp = input.file_path || input.path || '';
+  const oldS = input.old_string || '', newS = input.new_string || '';
+  if (!oldS && !newS) return renderCode(JSON.stringify(input, null, 2), 'json');
+  let h = fp ? `<div style="font-size:11px;color:#8b949e;margin-bottom:6px">📝 ${esc(fp)}</div>` : '';
+  h += '<div class="detail-diff"><div class="diff-hunk">@@ 修改内容 @@</div>';
+  for (const l of oldS.split('\n')) h += `<div class="diff-line diff-del">${esc(l)}</div>`;
+  for (const l of newS.split('\n')) h += `<div class="diff-line diff-add">${esc(l)}</div>`;
+  return h + '</div>';
+}
+function detectLang(fp) {
+  const m = {py:'python',js:'javascript',ts:'typescript',tsx:'typescript',jsx:'javascript',json:'json',html:'html',css:'css',md:'markdown',sh:'bash',bash:'bash',rs:'rust',go:'go',java:'java',kt:'kotlin',rb:'ruby',php:'php',c:'c',cpp:'cpp',yaml:'yaml',yml:'yaml',toml:'toml',xml:'xml',sql:'sql'};
+  return m[(fp.split('.').pop()||'').toLowerCase()] || 'plaintext';
+}
+function applySyntax() {
+  if (typeof hljs === 'undefined') return;
+  detailBodyEl.querySelectorAll('pre code[class^="language-"]').forEach(b => hljs.highlightElement(b));
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Report generation ─────────────────────────────────────────────────────
+let reportInFlight = false;
+let selectedReportMode = 'yuanxi';
+let currentSessionReportInfo = null;  // 当前 session 的报告信息
+
+function apiBase() {
+  return window.location.origin;
+}
+
+async function requestSessionAnalysis(sessionId, mode, customPrompt) {
+  const resp = await fetch(`${apiBase()}/api/analysis-reports`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({sessionId, mode, customPrompt}),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data.ok) {
+    throw new Error(data.error || `HTTP ${resp.status}`);
+  }
+  return {
+    reportType: data.reportType || 'html',
+    reportUrl: data.reportUrl || '',
+    report: data.report || '',
+    reportMode: data.reportMode || mode,
+    createdAt: new Date().toLocaleString('zh-CN', {hour12: false}),
+  };
+}
+
+function openReportModal() {
+  document.getElementById('reportOverlay').classList.add('open');
+  resetReportModalState();
+}
+
+function closeReportModal() {
+  document.getElementById('reportOverlay').classList.remove('open');
+}
+
+function onReportOverlayClick(e) {
+  if (e.target === document.getElementById('reportOverlay')) closeReportModal();
+}
+
+function resetReportModalState() {
+  // Show mode selection, hide others
+  document.getElementById('reportModeSelection').style.display = 'block';
+  document.getElementById('reportLoading').style.display = 'none';
+  document.getElementById('reportResult').style.display = 'none';
+  document.getElementById('reportError').style.display = 'none';
+  document.getElementById('reportCardFooter').style.display = 'flex';
+  document.getElementById('reportCardTitle').textContent = '生成 Session 报告';
+
+  // Reset confirm button
+  const confirmBtn = document.getElementById('reportConfirmBtn');
+  confirmBtn.disabled = reportInFlight;
+  confirmBtn.textContent = reportInFlight ? '生成中...' : '生成报告';
+
+  // Reset mode selection
+  selectedReportMode = 'yuanxi';
+  selectReportMode('yuanxi');
+  document.getElementById('reportCustomPrompt').value = '';
+
+  // Re-enable close
+  document.querySelector('.report-card-close').style.display = '';
+  document.getElementById('reportOverlay').onclick = onReportOverlayClick;
+}
+
+function selectReportMode(mode) {
+  selectedReportMode = mode;
+  document.getElementById('modeOptYuanxi').classList.toggle('selected', mode === 'yuanxi');
+  document.getElementById('modeOptGeneric').classList.toggle('selected', mode === 'generic');
+}
+
+function showReportLoading(mode) {
+  const modeLabel = mode === 'yuanxi' ? '元析报告' : '通用流程报告';
+  document.getElementById('reportModeSelection').style.display = 'none';
+  document.getElementById('reportLoading').style.display = 'flex';
+  document.getElementById('reportLoadingText').textContent = `正在生成 ${modeLabel}...`;
+  document.getElementById('reportCardFooter').style.display = 'none';
+  document.getElementById('reportCardTitle').textContent = '生成中...';
+  // Disable close during loading
+  document.querySelector('.report-card-close').style.display = 'none';
+  document.getElementById('reportOverlay').onclick = null;
+}
+
+function showReportResult(result) {
+  document.getElementById('reportLoading').style.display = 'none';
+  document.getElementById('reportResult').style.display = 'flex';
+  document.getElementById('reportCardFooter').style.display = 'flex';
+  document.getElementById('reportConfirmBtn').textContent = '重新生成';
+  document.getElementById('reportConfirmBtn').disabled = false;
+
+  const modeLabel = result.reportMode === 'yuanxi' ? '元析' : '通用流程';
+  document.getElementById('reportCardTitle').textContent = '报告生成完成';
+  document.getElementById('reportLinkTitle').textContent = `${modeLabel}报告已生成`;
+
+  // Meta info - only show mode label
+  document.getElementById('reportResultMeta').innerHTML =
+    `<span>${esc(result.createdAt)}</span>` +
+    `<span class="report-result-badge primary">${esc(modeLabel)}</span>`;
+
+  // Actions
+  const reportUrl = new URL(result.reportUrl, apiBase()).href;
+  const exportUrl = reportUrl + '/export';
+  document.getElementById('reportLinkActions').innerHTML = `
+    <a class="btn" href="${esc(reportUrl)}" target="_blank" rel="noopener">打开报告</a>
+    <a class="btn" href="${esc(exportUrl)}" download>导出报告</a>
+  `;
+
+  // Re-enable close
+  document.querySelector('.report-card-close').style.display = '';
+  document.getElementById('reportOverlay').onclick = onReportOverlayClick;
+}
+
+function showReportError(message) {
+  document.getElementById('reportLoading').style.display = 'none';
+  document.getElementById('reportError').style.display = 'block';
+  document.getElementById('reportError').textContent = message;
+  document.getElementById('reportCardFooter').style.display = 'flex';
+  document.getElementById('reportConfirmBtn').textContent = '重新生成';
+  document.getElementById('reportConfirmBtn').disabled = false;
+  document.getElementById('reportCardTitle').textContent = '生成失败';
+  // Re-enable close
+  document.querySelector('.report-card-close').style.display = '';
+  document.getElementById('reportOverlay').onclick = onReportOverlayClick;
+}
+
+function showExistingReport() {
+  if (!currentSessionReportInfo) return;
+
+  document.getElementById('reportModeSelection').style.display = 'none';
+  document.getElementById('reportLoading').style.display = 'none';
+  document.getElementById('reportResult').style.display = 'flex';
+  document.getElementById('reportError').style.display = 'none';
+  document.getElementById('reportCardFooter').style.display = 'flex';
+  document.getElementById('reportConfirmBtn').textContent = '重新生成';
+  document.getElementById('reportConfirmBtn').disabled = false;
+
+  const modeLabel = currentSessionReportInfo.mode === 'yuanxi' ? '元析' : '通用流程';
+  document.getElementById('reportCardTitle').textContent = '查看当前报告';
+  document.getElementById('reportLinkTitle').textContent = `${modeLabel}报告`;
+
+  // Meta info - only show mode label
+  const createdAt = currentSessionReportInfo.createdAt || '未知时间';
+  document.getElementById('reportResultMeta').innerHTML =
+    `<span>${esc(createdAt)}</span>` +
+    `<span class="report-result-badge primary">${esc(modeLabel)}</span>`;
+
+  // Actions
+  const reportUrl = `${apiBase()}/api/analysis-reports/${currentSessionReportInfo.sessionId}`;
+  const exportUrl = `${apiBase()}/api/analysis-reports/${currentSessionReportInfo.sessionId}/export`;
+  document.getElementById('reportLinkActions').innerHTML = `
+    <a class="btn" href="${esc(reportUrl)}" target="_blank" rel="noopener">打开报告</a>
+    <a class="btn" href="${esc(exportUrl)}" download>导出报告</a>
+  `;
+
+  // Re-enable close (ensure it's enabled when showing existing report)
+  document.querySelector('.report-card-close').style.display = '';
+  document.getElementById('reportOverlay').onclick = onReportOverlayClick;
+}
+
+async function checkReportStatus(sessionId) {
+  try {
+    const resp = await fetch(`${apiBase()}/api/analysis-reports/${sessionId}/status`);
+    const data = await resp.json();
+    if (data.exists) {
+      currentSessionReportInfo = {
+        sessionId: sessionId,
+        mode: data.mode,
+        createdAt: data.createdAt,
+      };
+    } else {
+      currentSessionReportInfo = null;
+    }
+  } catch (e) {
+    currentSessionReportInfo = null;
+  }
+  updateReportButtonText();
+}
+
+function updateReportButtonText() {
+  const btn = document.getElementById('btnReport');
+  const sessionId = document.getElementById('selSession').value;
+  if (!sessionId) {
+    btn.textContent = '生成报告';
+    return;
+  }
+  if (currentSessionReportInfo) {
+    btn.textContent = '查看当前 Session 报告';
+  } else {
+    btn.textContent = '生成报告';
+  }
+}
+
+async function confirmReportGeneration() {
+  if (reportInFlight) return;
+
+  const sessionId = document.getElementById('selSession').value;
+  if (!sessionId) {
+    alert('请先选择一个 session');
+    return;
+  }
+
+  // If we're showing results or error, reset and go back to mode selection
+  if (document.getElementById('reportResult').style.display === 'flex' ||
+      document.getElementById('reportError').style.display === 'block') {
+    resetReportModalState();
+    return;
+  }
+
+  const customPrompt = document.getElementById('reportCustomPrompt').value.trim();
+
+  reportInFlight = true;
+  showReportLoading(selectedReportMode);
+
+  try {
+    const result = await requestSessionAnalysis(sessionId, selectedReportMode, customPrompt);
+    // Update current report info
+    currentSessionReportInfo = {
+      sessionId: sessionId,
+      mode: result.reportMode,
+      createdAt: result.createdAt,
+    };
+    updateReportButtonText();  // Update button to "查看当前 Session 报告"
+    showReportResult(result);
+  } catch (e) {
+    showReportError(`报告生成失败：${e.message}`);
+  } finally {
+    reportInFlight = false;
+  }
+}
+
+async function generateSessionReport() {
+  const sessionId = document.getElementById('selSession').value;
+  if (!sessionId) {
+    alert('请先选择一个 session');
+    return;
+  }
+
+  // Check if report exists
+  await checkReportStatus(sessionId);
+
+  openReportModal();
+
+  if (currentSessionReportInfo) {
+    // Show existing report
+    showExistingReport();
+  } else {
+    // Show mode selection
+    resetReportModalState();
+  }
+}
+</script>
+
+<!-- Report Generation Modal -->
+<div class="report-overlay" id="reportOverlay" onclick="onReportOverlayClick(event)">
+  <div class="report-card">
+    <div class="report-card-hdr">
+      <span class="report-card-title" id="reportCardTitle">生成 Session 报告</span>
+      <button class="report-card-close" onclick="closeReportModal()">✕</button>
+    </div>
+    <div class="report-card-body" id="reportCardBody">
+      <!-- Mode Selection -->
+      <div id="reportModeSelection">
+        <div class="report-mode-options">
+          <div class="report-mode-option selected" id="modeOptYuanxi" onclick="selectReportMode('yuanxi')">
+            <div class="report-mode-option-title">🔬 元析报告</div>
+            <div class="report-mode-option-desc">结构化日志解析，生成阶段时间线、工具耗时、Agent 摘要和诊断图表。</div>
+          </div>
+          <div class="report-mode-option" id="modeOptGeneric" onclick="selectReportMode('generic')">
+            <div class="report-mode-option-title">📋 通用流程报告</div>
+            <div class="report-mode-option-desc">LLM 驱动的交互编排分析，生成包含 Mermaid 流程图的 Markdown 报告。</div>
+          </div>
+        </div>
+        <div>
+          <div class="report-prompt-label">自定义关注点（可选，追加到基础模板，不替换）</div>
+          <textarea class="report-prompt-input" id="reportCustomPrompt"
+            placeholder="例如：重点关注工具调用的重复模式和效率问题"></textarea>
+        </div>
+      </div>
+      <!-- Loading State (hidden by default) -->
+      <div class="report-loading" id="reportLoading" style="display:none">
+        <div class="report-loading-spinner"></div>
+        <div class="report-loading-text" id="reportLoadingText">正在生成报告...</div>
+      </div>
+      <!-- Result State (hidden by default) -->
+      <div class="report-result" id="reportResult" style="display:none">
+        <div class="report-result-meta" id="reportResultMeta"></div>
+        <div class="report-link-card">
+          <div class="report-link-title" id="reportLinkTitle">报告已生成</div>
+          <div class="report-link-actions" id="reportLinkActions"></div>
+        </div>
+      </div>
+      <!-- Error State (hidden by default) -->
+      <div class="report-error" id="reportError" style="display:none"></div>
+    </div>
+    <div class="report-card-footer" id="reportCardFooter">
+      <button class="report-btn" onclick="closeReportModal()">取消</button>
+      <button class="report-btn-primary" id="reportConfirmBtn" onclick="confirmReportGeneration()">生成报告</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

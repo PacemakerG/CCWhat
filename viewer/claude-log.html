@@ -2221,9 +2221,9 @@ pre, code, .code-block, .diff-schema-pre { font-family: var(--font-mono); }
 
       <!-- Timeline Page -->
       <div class="page" data-page="timeline">
-        <div class="page-pad" id="timelinePage">
+        <div class="page-pad" id="timelinePage" style="display:flex;flex-direction:column;overflow:hidden">
           <div class="page-title" data-i18n="timeline">Timeline</div>
-          <div id="timelineContent"><div class="placeholder">选择一个 session 加载后查看时间线</div></div>
+          <div id="timelineContent" style="flex:1;overflow:hidden;min-height:0"></div>
         </div>
       </div>
 
@@ -3418,26 +3418,26 @@ function renderOverviewPage() {
 }
 
 function renderTimelinePage() {
+  const sid = document.getElementById('sessionSel')?.value || '';
+  updateTimelineIframe(sid);
+}
+
+function updateTimelineIframe(sid) {
   const el = document.getElementById('timelineContent');
   if (!el) return;
-  if (!allEntries.length) {
+  if (!sid) {
     el.innerHTML = '<div class="placeholder">选择一个 session 加载后查看时间线</div>';
+    el.removeAttribute('data-sid');
     return;
   }
-  let html = '<div style="display:flex;flex-direction:column;gap:3px">';
-  for (const e of allEntries.slice(0, 200)) {
-    const ts = e.timestamp ? fmtTs(e.timestamp) : '';
-    const typeCls = knownTypes.has(e.type) ? e.type : 'other';
-    const summary = e.message?.content?.[0]?.text || e.subtype || '';
-    const truncSum = trunc(summary, 80);
-    const color = e._gid === 'main' ? 'var(--accent)' : 'var(--success)';
-    html += `<div style="display:flex;gap:8px;align-items:center;font-size:11px;padding:2px 0;border-left:2px solid ${color};padding-left:8px">
-      <span class="type-badge type-${typeCls}" style="font-size:9px">${esc(e.type)}</span>
-      <span style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:10px;white-space:nowrap">${esc(ts.slice(-8))}</span>
-      <span style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(truncSum)}</span>
-    </div>`;
-  }
-  el.innerHTML = html + '</div>';
+  let iframe = el.querySelector('iframe');
+  if (iframe && iframe.getAttribute('data-sid') === sid) return;
+  el.innerHTML = '';
+  iframe = document.createElement('iframe');
+  iframe.src = `session-gantt.html?sessionId=${encodeURIComponent(sid)}&embedded=1`;
+  iframe.setAttribute('data-sid', sid);
+  iframe.style.cssText = 'width:100%;height:100%;border:0;display:block';
+  el.appendChild(iframe);
 }
 
 function visibleStepCountForCurrentProjection() {
@@ -9937,7 +9937,11 @@ function eventsToEntries(events) {
 // ── Load session entries ─────────────────────────────────────────────────
 async function loadSession() {
   const sessionId = document.getElementById('sessionSel').value;
-  if (!sessionId) return;
+  if (!sessionId) {
+    currentLoadedSessionId = '';
+    updateTimelineIframe('');
+    return;
+  }
 
   if (currentLoadedSessionId && currentLoadedSessionId !== sessionId && hasDirtyTaskTraceOverlay(currentLoadedSessionId)) {
     if (!confirm('当前 session 有未保存的 Task Trace 编辑。切换 session 会保留内存预览，但请记得保存或撤销。继续切换？')) {
