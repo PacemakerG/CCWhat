@@ -2,6 +2,31 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
+## v2.4.0 - 2026-07-02
+
+### Runtime Dataset 彻底重构：只保留 task 边界 git diff
+
+承认 step-by-step 实时归因不可靠（PostToolUse hook 偶发不触发、fire-and-forget curl 易丢、并发 race 错位），把 runtime 产物砍到只剩 git diff ground truth + 边界元数据。Agent 行为轨迹 / instruction / changes 改由事后 dataset 导出时从原始日志抽取，可重放可校验。
+
+### 改进
+
+- **task.json schema 精简**：只保留 `task_id` / `run_id` / `agent` / `workspace` / `started_at` / `finished_at` / `start_tree` / `end_tree` 八个边界元数据字段，删掉 `instruction` / `success_criteria` / `expected_tests` / `paths` / `evidence_availability` / `git` / `schema` / `title` / `status`
+- **task.diff 语义修正**：改为 start 时工作树快照 → finish 时工作树快照的 git diff（基于 isolated index 的 `write-tree` 对比），不再混入 task 开始前的 dirty 改动
+- **git index 隔离**：全程使用 `.git/index.ccwhat`，零污染用户 `.git/index` 和工作树；untracked 文件也纳入 task.diff，但用户 `git status` 不受影响
+- **CCWhatIndex 精简**：只保留 `init` / `sync_workspace` / `write_tree` / `diff_cached` 四个方法
+- **升级自动清理**：install 时检测并移除旧版本残留的 `ccwhat-diff-hook.sh` 文件和 `settings.local.json` 的 `PostToolUse` 条目
+
+### 移除
+
+- **step-by-step diff 机制**：删除 `StepDiff` / `StepDiffBuffer` / `record_step` / `sync_step` / `remove_step` / `/step` endpoint / unattributed fallback / `diff.patch`
+- **task_trace.json**：删除 `trace_extractor` 整个模块，runtime 不再在 finish 时抽取 Agent 行为轨迹（与离线 `task_dataset` builder 同源重复）
+- **`diff_total.patch`**：被 `task.diff` 取代
+- **Claude PostToolUse hook 安装**：删除 `_install_posttooluse_hook`，不再生成 `ccwhat-diff-hook.sh`
+- **OpenCode `tool.execute.after` plugin 段**：删除 `detectFileOperation`，plugin 只保留 `command.execute.before` 用于 start/finish boundary
+- **孤儿依赖 `claude-code-log`**：从 `pyproject.toml` 移除未使用的依赖，修复 uv 解析冲突
+
+---
+
 ## v2.3.6 - 2026-06-30
 
 ### Windows 原生支持适配

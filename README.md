@@ -18,7 +18,7 @@
 
 <p>
   <strong>Changelog:</strong>
-  <a href="./CHANGELOG.md">v2.3.6</a> ·
+  <a href="./CHANGELOG.md">v2.4.0</a> ·
   <a href="./CHANGELOG.md">更新日志</a>
 </p>
 
@@ -263,7 +263,13 @@ Windows 遇到端口被 TCP excluded port range 拒绝时，按错误提示换�
 
 ## 📈 v2 版本演进
 
-**v2.3** — 当前版本
+**v2.4** — 当前版本
+
+- Runtime Dataset 重构：只保留 task 边界 git diff（`task.diff`）+ 边界元数据（`task.json`），砍掉 step-by-step diff / `task_trace.json` / `diff_total.patch`
+- git index 隔离：`.git/index.ccwhat` 零污染用户工作区
+- Agent 行为轨迹改由事后从原始日志抽取
+
+**v2.3**
 
 - Runtime Task Recording：通过 `ccwhat -- claude` 启动，原生 slash 菜单触发 `/ccwhat:start` / `/ccwhat:finish`
 - Runtime Dataset V2：任务边界用户显式标定，记录 `repo_before/after` 快照、`diff.patch` 和完整 Agent 行为轨迹
