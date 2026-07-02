@@ -44,6 +44,8 @@ def install_claude_integration(workspace: Path) -> list[Path]:
     settings_path = claude_dir / "settings.local.json"
     _install_hook_settings(settings_path, hook_path, claude_dir)
     written.append(settings_path)
+
+    _cleanup_legacy_diff_hook(claude_dir, settings_path)
     return written
 
 
@@ -121,41 +123,56 @@ def _install_hook_settings(settings_path: Path, hook_path: Path, claude_dir: Pat
     if not replaced:
         entries.append(managed_entry)
 
-    # Install PostToolUse hook for diff tracking
-    _install_posttooluse_hook(hooks, claude_dir)
+    settings_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _cleanup_legacy_diff_hook(claude_dir: Path, settings_path: Path) -> None:
+    """Remove leftover ccwhat-diff-hook.sh and its PostToolUse entry from prior versions."""
+    legacy_hook = claude_dir / "hooks" / "ccwhat-diff-hook.sh"
+    if legacy_hook.exists():
+        try:
+            legacy_hook.unlink()
+        except OSError:
+            pass
+
+    if not settings_path.exists():
+        return
+    try:
+        data = json.loads(settings_path.read_text(encoding="utf-8") or "{}")
+    except (OSError, json.JSONDecodeError):
+        return
+    if not isinstance(data, dict):
+        return
+    hooks = data.get("hooks")
+    if not isinstance(hooks, dict):
+        return
+
+    post = hooks.get("PostToolUse")
+    if not isinstance(post, list):
+        return
+
+    filtered = [
+        entry for entry in post
+        if not _entry_references_diff_hook(entry)
+    ]
+    if filtered:
+        hooks["PostToolUse"] = filtered
+    else:
+        hooks.pop("PostToolUse", None)
 
     settings_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def _install_posttooluse_hook(hooks: dict, claude_dir: Path) -> None:
-    """Install PostToolUse hook for incremental diff tracking."""
-    entries = hooks.setdefault("PostToolUse", [])
-    if not isinstance(entries, list):
-        entries = []
-        hooks["PostToolUse"] = entries
-
-    diff_hook_path = claude_dir / "hooks" / "ccwhat-diff-hook.sh"
-    managed_entry = {
-        "matcher": "Write|Edit|MultiEdit|Bash",
-        "hooks": [{"type": "command", "command": str(diff_hook_path), "timeout": 5}],
-    }
-
-    replaced = False
-    for idx, entry in enumerate(entries):
-        if not isinstance(entry, dict):
-            continue
-        entry_hooks = entry.get("hooks")
-        if not isinstance(entry_hooks, list):
-            continue
-        for hook in entry_hooks:
-            if isinstance(hook, dict) and "ccwhat-diff-hook.sh" in str(hook.get("command", "")):
-                entries[idx] = managed_entry
-                replaced = True
-                break
-        if replaced:
-            break
-    if not replaced:
-        entries.append(managed_entry)
+def _entry_references_diff_hook(entry: object) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    inner = entry.get("hooks")
+    if not isinstance(inner, list):
+        return False
+    for hook in inner:
+        if isinstance(hook, dict) and "ccwhat-diff-hook.sh" in str(hook.get("command", "")):
+            return True
+    return False
 
 
 def _portable_hook_command(hook_path: Path) -> str:

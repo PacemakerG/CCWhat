@@ -37,10 +37,10 @@ def start(
     output: str,
     config_path: str | None,
 ) -> None:
-    """Start a CCWhat tracking session with incremental diff recording.
+    """Start a CCWhat tracking session with task boundary diff recording.
 
     This command launches Claude Code with CCWhat tracking enabled.
-    File modifications via Write/Edit tools will be recorded to diff.patch.
+    File modifications between /ccwhat:start and /ccwhat:finish are recorded to task.diff.
 
     Examples:
 

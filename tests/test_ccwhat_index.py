@@ -6,9 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from ccwhat.runtime.core.index import CCWhatIndex, CCWhatIndexError
+from ccwhat.runtime.core.index import CCWhatIndex
 
 
 def _init_repo(path: Path) -> None:
@@ -21,120 +19,103 @@ def _init_repo(path: Path) -> None:
     subprocess.run(["git", "commit", "-m", "initial"], cwd=path, check=True, capture_output=True)
 
 
+def _user_staged_files(workspace: Path) -> list[str]:
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        cwd=workspace,
+        text=True,
+        capture_output=True,
+    )
+    return [line for line in result.stdout.splitlines() if line]
+
+
 def test_ccwhat_index_isolated_from_main_index():
-    """Test that CCWhatIndex operations don't affect main git index."""
+    """CCWhatIndex operations do not affect the user's main git index."""
     with tempfile.TemporaryDirectory() as tmp:
         workspace = Path(tmp)
         _init_repo(workspace)
+        user_index_before = (workspace / ".git" / "index").read_bytes()
 
-        # Create CCWhatIndex
         index = CCWhatIndex(workspace)
         index.init()
-
-        # Create a new file
         (workspace / "new_file.py").write_text("content\n", encoding="utf-8")
+        index.sync_workspace()
 
-        # Add to CCWhatIndex
-        index.add("new_file.py")
-
-        # Main git index should not have the file staged
-        main_index = subprocess.run(
-            ["git", "diff", "--cached", "--name-only"],
-            cwd=workspace,
-            text=True,
-            capture_output=True,
-        )
-        assert "new_file.py" not in main_index.stdout, "File should not be staged in main index"
-
-        # CCWhatIndex should see the file
-        diff = index.diff("HEAD")
-        assert "new_file.py" in diff, "File should appear in CCWhatIndex diff"
+        # User's main index should not see the new file staged
+        assert "new_file.py" not in _user_staged_files(workspace)
+        # User's main index bytes unchanged
+        assert (workspace / ".git" / "index").read_bytes() == user_index_before
+        # Isolated index file exists
+        assert (workspace / ".git" / "index.ccwhat").exists()
 
 
-def test_ccwhat_index_add_and_diff():
-    """Test adding files and generating diff."""
+def test_ccwhat_index_write_tree_and_diff_cached():
+    """write_tree captures a snapshot; diff_cached shows changes vs that snapshot."""
     with tempfile.TemporaryDirectory() as tmp:
         workspace = Path(tmp)
         _init_repo(workspace)
 
         index = CCWhatIndex(workspace)
         index.init()
+        start_tree = index.write_tree()
 
-        # Add new file
+        # Make changes: new file + modify existing
         (workspace / "src").mkdir()
         (workspace / "src" / "app.py").write_text("print('hello')\n", encoding="utf-8")
-        index.add("src/app.py")
+        (workspace / "README.md").write_text("modified content\n", encoding="utf-8")
+        index.sync_workspace()
+        end_tree = index.write_tree()
 
-        diff = index.diff("HEAD")
+        assert start_tree != end_tree
+        diff = index.diff_cached(start_tree)
         assert "new file mode 100644" in diff
         assert "src/app.py" in diff
         assert "print('hello')" in diff
-
-
-def test_ccwhat_index_modify_existing_file():
-    """Test modifying an existing tracked file."""
-    with tempfile.TemporaryDirectory() as tmp:
-        workspace = Path(tmp)
-        _init_repo(workspace)
-
-        index = CCWhatIndex(workspace)
-        index.init()
-
-        # Modify existing file
-        (workspace / "README.md").write_text("modified content\n", encoding="utf-8")
-        index.add("README.md")
-
-        diff = index.diff("HEAD")
         assert "-initial" in diff
         assert "+modified content" in diff
 
 
-def test_ccwhat_index_remove_file():
-    """Test removing a file from index shows deletion."""
+def test_ccwhat_index_includes_untracked_files():
+    """sync_workspace picks up untracked files without touching user index."""
     with tempfile.TemporaryDirectory() as tmp:
         workspace = Path(tmp)
         _init_repo(workspace)
 
         index = CCWhatIndex(workspace)
         index.init()
+        start_tree = index.write_tree()
 
-        # Add README to index first
-        index.add("README.md")
+        (workspace / "untracked.txt").write_text("new\n", encoding="utf-8")
+        index.sync_workspace()
+        diff = index.diff_cached(start_tree)
+        assert "untracked.txt" in diff
+        assert "new file mode 100644" in diff
+        # user git status should still show it as untracked (?? ), not staged
+        status = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=workspace, text=True, capture_output=True,
+        ).stdout
+        assert "?? untracked.txt" in status
 
-        # Then remove it
-        index.remove("README.md")
 
-        diff = index.diff("HEAD")
-        # After add then remove of a tracked file, diff shows deletion
-        assert "deleted file" in diff or diff == ""
-
-
-def test_ccwhat_index_raises_on_nonexistent_file():
-    """Test that adding nonexistent file raises error."""
+def test_ccwhat_index_init_includes_pre_existing_dirty_state():
+    """init() syncs working tree so start_tree includes pre-existing dirty changes."""
     with tempfile.TemporaryDirectory() as tmp:
         workspace = Path(tmp)
         _init_repo(workspace)
 
-        index = CCWhatIndex(workspace)
-        index.init()
-
-        with pytest.raises(CCWhatIndexError, match="does not exist"):
-            index.add("nonexistent.py")
-
-
-def test_ccwhat_index_get_tree_hash():
-    """Test getting tree hash from index."""
-    with tempfile.TemporaryDirectory() as tmp:
-        workspace = Path(tmp)
-        _init_repo(workspace)
+        # pre-existing dirty change before CCWhat starts
+        (workspace / "uv.lock").write_text("dirty\n", encoding="utf-8")
 
         index = CCWhatIndex(workspace)
         index.init()
+        start_tree = index.write_tree()
 
-        # Empty index should still return a hash after adding something
-        (workspace / "file.py").write_text("content\n", encoding="utf-8")
-        index.add("file.py")
+        # task-time change
+        (workspace / "README.md").write_text("task change\n", encoding="utf-8")
+        index.sync_workspace()
+        diff = index.diff_cached(start_tree)
 
-        tree_hash = index.get_tree_hash()
-        assert tree_hash is not None
-        assert len(tree_hash) == 40  # SHA-1 hash
+        # task diff should include README change but NOT the pre-existing uv.lock dirty
+        assert "README.md" in diff
+        assert "uv.lock" not in diff

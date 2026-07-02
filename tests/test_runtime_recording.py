@@ -169,22 +169,29 @@ def test_controller_start_finish_writes_runtime_task_staging() -> None:
         task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
         second_task_dir = registry.run_dir(run.run_id) / "tasks" / "task-002"
         second_task = json.loads((second_task_dir / "task.json").read_text(encoding="utf-8"))
-        assert task["title"] == "Task1"
-        assert second_task["title"] == "Task2"
-        assert task["status"] == "finalized"
-        # repo snapshots and diff removed - evidence_availability should be false
-        assert task["evidence_availability"]["repo_before"] is False
-        assert task["evidence_availability"]["repo_after"] is False
-        assert task["evidence_availability"]["diff"] is False
-        assert task["evidence_availability"]["control_events"] is False
-        # step diff.patch is empty (no record_step calls), but total diff captures README change
-        assert task["evidence_availability"]["diff_total"] is True
-        assert task["paths"]["diff_total"] == "diff_total.patch"
-        assert (task_dir / "diff_total.patch").exists()
-        # repo snapshots and control_events no longer created
+        assert task["task_id"] == "task-001"
+        assert task["run_id"] == run.run_id
+        assert task["agent"] == "claude"
+        assert task["workspace"] == str(workspace.resolve())
+        assert task["started_at"]
+        assert task["finished_at"]
+        assert task["start_tree"]
+        assert task["end_tree"]
+        assert task["start_tree"] != task["end_tree"]
+        assert set(task.keys()) == {
+            "task_id", "run_id", "agent", "workspace",
+            "started_at", "finished_at", "start_tree", "end_tree",
+        }
+        assert (task_dir / "task.diff").exists()
+        diff_text = (task_dir / "task.diff").read_text(encoding="utf-8")
+        assert "README.md" in diff_text
+        assert "-before" in diff_text
+        assert "+after" in diff_text
+        assert not (task_dir / "diff.patch").exists()
+        assert not (task_dir / "diff_total.patch").exists()
+        assert not (task_dir / "task_trace.json").exists()
         assert not (task_dir / "repo_before.tar.gz").exists()
         assert not (task_dir / "repo_after.tar.gz").exists()
-        assert not (task_dir / "diff.patch").exists()
         assert not (task_dir / "control_events.jsonl").exists()
 
 
@@ -258,6 +265,9 @@ def test_claude_integration_generates_managed_files_and_detects_conflicts() -> N
         assert finish_command.exists()
         assert hook.exists()
         assert "UserPromptSubmit" in settings.read_text(encoding="utf-8")
+        settings_payload = json.loads(settings.read_text(encoding="utf-8"))
+        assert "PostToolUse" not in settings_payload.get("hooks", {})
+        assert not (workspace / ".claude" / "hooks" / "ccwhat-diff-hook.sh").exists()
 
         start_command.write_text("user file\n", encoding="utf-8")
         try:
@@ -335,10 +345,9 @@ def test_opencode_integration_generates_managed_files_and_detects_conflicts() ->
         assert "opencode_command_execute_before" in plugin_text
         assert "ccwhat:start" in plugin_text
         assert "ccwhat:finish" in plugin_text
-        assert "tool.execute.after" in plugin_text
-        assert "detectFileOperation" in plugin_text
-        assert "CCWHAT_ENABLED" in plugin_text
-        assert "action" in plugin_text
+        assert "tool.execute.after" not in plugin_text
+        assert "detectFileOperation" not in plugin_text
+        assert "CCWHAT_ENABLED" not in plugin_text
 
         start_command.write_text("user file\n", encoding="utf-8")
         try:
@@ -413,14 +422,15 @@ def test_claude_hook_command_drives_controller_and_staging() -> None:
 
         task_dir = registry.run_dir(run.run_id) / "tasks" / "task-001"
         assert (task_dir / "task.json").exists()
-        # repo snapshots, diff, and control_events no longer created
-        assert not (task_dir / "control_events.jsonl").exists()
-        assert not (task_dir / "repo_before.tar.gz").exists()
-        assert not (task_dir / "repo_after.tar.gz").exists()
-        assert not (task_dir / "diff.patch").exists()
+        assert (task_dir / "task.diff").exists()
+        diff_text = (task_dir / "task.diff").read_text(encoding="utf-8")
+        assert "README.md" in diff_text
+        assert "-before" in diff_text
+        assert "+after hook" in diff_text
         task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-        assert task["title"] == "Task1"
-        assert task["status"] == "finalized"
+        assert task["start_tree"]
+        assert task["end_tree"]
+        assert task["start_tree"] != task["end_tree"]
 
 
 def test_codex_hook_command_drives_controller_and_staging() -> None:
@@ -463,15 +473,15 @@ def test_codex_hook_command_drives_controller_and_staging() -> None:
 
         task_dir = registry.run_dir(run.run_id) / "tasks" / "task-001"
         assert (task_dir / "task.json").exists()
-        # repo snapshots, diff, and control_events no longer created
-        assert not (task_dir / "control_events.jsonl").exists()
-        assert not (task_dir / "repo_before.tar.gz").exists()
-        assert not (task_dir / "repo_after.tar.gz").exists()
-        assert not (task_dir / "diff.patch").exists()
+        assert (task_dir / "task.diff").exists()
+        diff_text = (task_dir / "task.diff").read_text(encoding="utf-8")
+        assert "README.md" in diff_text
+        assert "-before" in diff_text
+        assert "+after codex" in diff_text
         task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-        assert task["title"] == "Task1"
-        assert task["status"] == "finalized"
-        # control_events no longer created, so no event assertions
+        assert task["start_tree"]
+        assert task["end_tree"]
+        assert task["start_tree"] != task["end_tree"]
 
 
 def test_codex_hook_short_text_fallback_drives_controller() -> None:
@@ -514,8 +524,10 @@ def test_codex_hook_short_text_fallback_drives_controller() -> None:
 
         task_dir = registry.run_dir(run.run_id) / "tasks" / "task-001"
         task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-        assert task["title"] == "Task1"
-        assert task["status"] == "finalized"
+        assert task["task_id"] == "task-001"
+        assert task["start_tree"]
+        assert task["end_tree"]
+        assert (task_dir / "task.diff").exists()
 
 
 def test_top_level_claude_run_creates_runtime_and_injects_env() -> None:
@@ -640,121 +652,17 @@ def test_top_level_opencode_run_creates_runtime_and_injects_env() -> None:
         assert run["agent_process"]["pid"] == 3456
 
 
-# ---------------------------------------------------------------------------
-# trace_extractor tests
-# ---------------------------------------------------------------------------
 
-from datetime import datetime, timezone
-
-from ccwhat.runtime.core.trace_extractor import extract_task_trace, find_session_log_paths
-
-
-def _write_session_jsonl(path: Path, entries: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        for entry in entries:
-            f.write(json.dumps(entry) + "\n")
-
-
-def _claude_entry(ts: str, etype: str, text: str) -> dict:
-    return {"type": etype, "timestamp": ts, "content": text}
-
-
-def _now_ts() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def test_trace_extractor_time_window() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        projects_dir = Path(tmp) / "projects"
-        workspace = "/fake/workspace"
-        project_dir = projects_dir / "-fake-workspace"
-        session_jsonl = project_dir / "abcd1234-0000-0000-0000-000000000001.jsonl"
-
-        entries = [
-            _claude_entry("2026-01-01T10:00:00Z", "user", "before task"),
-            _claude_entry("2026-01-01T10:01:00Z", "user", "inside task: fix bug"),
-            _claude_entry("2026-01-01T10:02:00Z", "user", "still inside"),
-            _claude_entry("2026-01-01T10:10:00Z", "user", "after task"),
-        ]
-        _write_session_jsonl(session_jsonl, entries)
-
-        trace = extract_task_trace(
-            workspace=workspace,
-            started_at="2026-01-01T10:00:30Z",
-            finished_at="2026-01-01T10:03:00Z",
-            agent="claude",
-            projects_dir=projects_dir,
-        )
-        assert trace is not None
-        event_texts = [e["text"] for e in trace["events"] if e.get("text")]
-        assert any("inside task" in t for t in event_texts)
-        assert not any("before task" in t for t in event_texts)
-        assert not any("after task" in t for t in event_texts)
-        assert trace["time_window"]["started_at"] == "2026-01-01T10:00:30Z"
-
-
-def test_trace_extractor_missing_log_returns_log_not_found() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        projects_dir = Path(tmp) / "projects"
-        projects_dir.mkdir()
-        trace = extract_task_trace(
-            workspace="/no/such/workspace",
-            started_at="2026-01-01T10:00:00Z",
-            finished_at="2026-01-01T10:01:00Z",
-            agent="claude",
-            projects_dir=projects_dir,
-        )
-        assert trace["extraction_status"] == "log_not_found"
-        assert trace["extraction_status_reason"] is not None
-        assert trace["events"] == []
-        assert trace["commands"] == []
-
-
-def test_trace_extractor_unsupported_agent() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        projects_dir = Path(tmp) / "projects"
-        projects_dir.mkdir()
-        trace = extract_task_trace(
-            workspace="/any/workspace",
-            started_at="2026-01-01T10:00:00Z",
-            finished_at="2026-01-01T10:01:00Z",
-            agent="codex",
-            projects_dir=projects_dir,
-        )
-        assert trace["extraction_status"] == "unsupported_agent"
-        assert trace["extraction_status_reason"] is not None
-        assert trace["agent"] == "codex"
-        assert trace["events"] == []
-        assert trace["commands"] == []
-        assert trace["files"] == {"read": [], "changed": []}
-
-
-def test_trace_extractor_invalid_time_bounds() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        projects_dir = Path(tmp) / "projects"
-        projects_dir.mkdir()
-        trace = extract_task_trace(
-            workspace="/any/workspace",
-            started_at="invalid-timestamp",
-            finished_at="2026-01-01T10:01:00Z",
-            agent="claude",
-            projects_dir=projects_dir,
-        )
-        assert trace["extraction_status"] == "invalid_time_bounds"
-        assert trace["extraction_status_reason"] is not None
-
-
-def test_task_trace_written_on_finish() -> None:
+def test_task_diff_excludes_pre_task_dirty_changes() -> None:
+    """task.diff only contains changes between start and finish, not pre-existing dirty state."""
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         workspace = root / "repo"
         workspace.mkdir()
         _init_repo(workspace)
 
-        projects_dir = root / "claude_projects"
-        project_dir = projects_dir / workspace.as_posix().replace("/", "-")
-        session_jsonl = project_dir / "abcd1234-0000-0000-0000-000000000002.jsonl"
+        # pre-task dirty change: modify uv.lock before starting task
+        (workspace / "uv.lock").write_text("pre-task dirty\n", encoding="utf-8")
 
         registry = RunRegistry(root / "runtime")
         port = allocate_port()
@@ -762,239 +670,127 @@ def test_task_trace_written_on_finish() -> None:
             agent="claude",
             workspace=workspace,
             target_args=("claude",),
-            proxy_port=11101,
-            viewer_port=11102,
+            proxy_port=11001,
+            viewer_port=11002,
             control_port=port,
-        )
-
-        with mock.patch(
-            "ccwhat.runtime.core.trace_extractor._CLAUDE_PROJECTS_DIR", projects_dir
-        ):
-            controller = RuntimeController(registry, run.run_id, port)
-            controller.start()
-            try:
-                token = str(run.control["token"])
-                call_controller(port, token, "start", {"title": "fix bug"})
-                # Write session entries AFTER start so timestamps fall within task window
-                entries = [
-                    _claude_entry(_now_ts(), "user", "run tests"),
-                    _claude_entry(_now_ts(), "assistant", "done"),
-                ]
-                _write_session_jsonl(session_jsonl, entries)
-                (workspace / "README.md").write_text("changed\n", encoding="utf-8")
-                call_controller(port, token, "finish", {})
-            finally:
-                controller.stop()
-
-        task_dir = registry.run_dir(run.run_id) / "tasks" / "task-001"
-        task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-        assert task["evidence_availability"]["task_trace"] is True
-        assert "task_trace" in task["paths"]
-        trace_path = task_dir / "task_trace.json"
-        assert trace_path.exists()
-        trace = json.loads(trace_path.read_text(encoding="utf-8"))
-        assert trace["task_id"] == "task-001"
-        assert trace["run_id"] == run.run_id
-        assert "events" in trace
-        assert "commands" in trace
-        assert "errors" in trace
-
-
-def test_task_trace_missing_log_degrades_gracefully() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
-        workspace = root / "repo"
-        workspace.mkdir()
-        _init_repo(workspace)
-
-        empty_projects_dir = root / "no_claude_projects"
-        empty_projects_dir.mkdir()
-
-        registry = RunRegistry(root / "runtime")
-        port = allocate_port()
-        run = registry.create_run(
-            agent="claude",
-            workspace=workspace,
-            target_args=("claude",),
-            proxy_port=11201,
-            viewer_port=11202,
-            control_port=port,
-        )
-
-        with mock.patch(
-            "ccwhat.runtime.core.trace_extractor._CLAUDE_PROJECTS_DIR", empty_projects_dir
-        ):
-            controller = RuntimeController(registry, run.run_id, port)
-            controller.start()
-            try:
-                token = str(run.control["token"])
-                call_controller(port, token, "start", {"title": "task without log"})
-                call_controller(port, token, "finish", {})
-            finally:
-                controller.stop()
-
-        task_dir = registry.run_dir(run.run_id) / "tasks" / "task-001"
-        task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-        assert task["status"] == "finalized"
-        assert task["evidence_availability"]["task_trace"] is True
-        assert (task_dir / "task_trace.json").exists()
-        trace = json.loads((task_dir / "task_trace.json").read_text(encoding="utf-8"))
-        assert trace["extraction_status"] == "log_not_found"
-
-
-def test_task_json_instruction_and_expected_tests() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
-        workspace = root / "repo"
-        workspace.mkdir()
-        _init_repo(workspace)
-
-        projects_dir = root / "claude_projects"
-        project_dir = projects_dir / workspace.as_posix().replace("/", "-")
-        session_jsonl = project_dir / "abcd1234-0000-0000-0000-000000000003.jsonl"
-
-        registry = RunRegistry(root / "runtime")
-        port = allocate_port()
-        run = registry.create_run(
-            agent="claude",
-            workspace=workspace,
-            target_args=("claude",),
-            proxy_port=11301,
-            viewer_port=11302,
-            control_port=port,
-        )
-
-        task_dir = registry.run_dir(run.run_id) / "tasks" / "task-001"
-
-        with mock.patch(
-            "ccwhat.runtime.core.trace_extractor._CLAUDE_PROJECTS_DIR", projects_dir
-        ):
-            controller = RuntimeController(registry, run.run_id, port)
-            controller.start()
-            try:
-                token = str(run.control["token"])
-                call_controller(port, token, "start", {"title": "short title"})
-
-                task_before = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-                assert task_before["instruction"] == "short title"
-                assert task_before["success_criteria"] is None
-                assert task_before["expected_tests"] == []
-
-                # Write session entries with current timestamps so they fall in task window
-                entries = [_claude_entry(_now_ts(), "user", "add unit tests for parser")]
-                _write_session_jsonl(session_jsonl, entries)
-
-                call_controller(port, token, "finish", {})
-            finally:
-                controller.stop()
-
-        task_after = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-        assert task_after["instruction"] == "add unit tests for parser"
-
-
-def test_step_diff_captures_bash_mv_and_sed_via_sync() -> None:
-    """sync_step captures mv/sed changes that bypass Write/Edit hooks,
-    and incremental step diffs do not duplicate previous steps."""
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
-        workspace = root / "repo"
-        workspace.mkdir()
-        _init_repo(workspace)
-        (workspace / "old.md").write_text("hello\n", encoding="utf-8")
-        (workspace / "config.py").write_text("VERSION = 1\n", encoding="utf-8")
-        subprocess.run(["git", "add", "."], cwd=workspace, capture_output=True, check=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=workspace, capture_output=True, check=True)
-
-        registry = RunRegistry(root / "runtime")
-        port = allocate_port()
-        run = registry.create_run(
-            agent="opencode", workspace=workspace, target_args=("opencode",),
-            proxy_port=11301, viewer_port=None, control_port=port,
         )
         controller = RuntimeController(registry, run.run_id, port)
         controller.start()
         try:
             token = str(run.control["token"])
-            call_controller(port, token, "start", {"title": "mv and sed"})
-
-            # bash mv: rename old.md -> new.md, reported via /step action=sync
-            subprocess.run(["mv", "old.md", "new.md"], cwd=workspace, capture_output=True, check=True)
-            call_controller(port, token, "step", {"tool_name": "bash", "file_path": "", "action": "sync"})
-
-            # bash sed: modify config.py, reported via /step action=sync
-            subprocess.run(["sed", "-i", "", "s/VERSION = 1/VERSION = 2/", "config.py"],
-                           cwd=workspace, capture_output=True, check=True)
-            call_controller(port, token, "step", {"tool_name": "bash", "file_path": "", "action": "sync"})
-
-            call_controller(port, token, "finish", {})
+            assert call_controller(port, token, "start", {"title": "t"})["ok"] is True
+            (workspace / "README.md").write_text("changed during task\n", encoding="utf-8")
+            assert call_controller(port, token, "finish", {})["ok"] is True
         finally:
             controller.stop()
 
         task_dir = registry.run_dir(run.run_id) / "tasks" / "task-001"
-        task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-
-        # Step diff and total diff both generated
-        assert task["evidence_availability"]["diff"] is True
-        assert task["evidence_availability"]["diff_total"] is True
-
-        step_patch = (task_dir / "diff.patch").read_text(encoding="utf-8")
-        total_patch = (task_dir / "diff_total.patch").read_text(encoding="utf-8")
-
-        # mv captured as a rename (in both step and total)
-        assert "rename from old.md" in step_patch
-        assert "rename to new.md" in step_patch
-        assert "rename from old.md" in total_patch
-
-        # sed captured as content change (in both)
-        assert "-VERSION = 1" in step_patch
-        assert "+VERSION = 2" in step_patch
-        assert "-VERSION = 1" in total_patch
-        assert "+VERSION = 2" in total_patch
+        diff_text = (task_dir / "task.diff").read_text(encoding="utf-8")
+        assert "README.md" in diff_text
+        assert "uv.lock" not in diff_text
 
 
-def test_step_diff_incremental_does_not_duplicate() -> None:
-    """Each step diff contains only that step's change, not prior steps'."""
+def test_task_diff_captures_bash_and_untracked() -> None:
+    """task.diff captures bash-created changes and untracked files."""
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         workspace = root / "repo"
         workspace.mkdir()
         _init_repo(workspace)
-        (workspace / "a.py").write_text("a\n", encoding="utf-8")
-        (workspace / "b.py").write_text("b\n", encoding="utf-8")
-        subprocess.run(["git", "add", "."], cwd=workspace, capture_output=True, check=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=workspace, capture_output=True, check=True)
 
         registry = RunRegistry(root / "runtime")
         port = allocate_port()
         run = registry.create_run(
-            agent="opencode", workspace=workspace, target_args=("opencode",),
-            proxy_port=11302, viewer_port=None, control_port=port,
+            agent="claude",
+            workspace=workspace,
+            target_args=("claude",),
+            proxy_port=11001,
+            viewer_port=11002,
+            control_port=port,
         )
         controller = RuntimeController(registry, run.run_id, port)
         controller.start()
         try:
             token = str(run.control["token"])
-            call_controller(port, token, "start", {"title": "two edits"})
-
-            (workspace / "a.py").write_text("a1\n", encoding="utf-8")
-            call_controller(port, token, "step", {"tool_name": "edit", "file_path": "a.py", "action": "add"})
-
-            (workspace / "b.py").write_text("b1\n", encoding="utf-8")
-            call_controller(port, token, "step", {"tool_name": "edit", "file_path": "b.py", "action": "add"})
-
-            call_controller(port, token, "finish", {})
+            assert call_controller(port, token, "start", {"title": "t"})["ok"] is True
+            # bash-style changes: new untracked file + modify existing
+            (workspace / "new_file.txt").write_text("new content\n", encoding="utf-8")
+            (workspace / "README.md").write_text("via bash edit\n", encoding="utf-8")
+            assert call_controller(port, token, "finish", {})["ok"] is True
         finally:
             controller.stop()
 
         task_dir = registry.run_dir(run.run_id) / "tasks" / "task-001"
-        step_patch = (task_dir / "diff.patch").read_text(encoding="utf-8")
+        diff_text = (task_dir / "task.diff").read_text(encoding="utf-8")
+        assert "new_file.txt" in diff_text
+        assert "README.md" in diff_text
+        assert "+new content" in diff_text
 
-        # Step 1 section contains a.py change but not b.py
-        step1 = step_patch.split("# Step 2:")[0]
-        assert "a.py" in step1
-        assert "b.py" not in step1
 
-        # Step 2 section contains b.py change but not a.py's old content
-        step2 = step_patch.split("# Step 2:")[1]
-        assert "b.py" in step2
-        assert "+a1" not in step2  # a.py's change must not leak into step 2
+def test_user_git_index_unchanged_by_runtime() -> None:
+    """Runtime operations do not pollute the user's .git/index."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        workspace = root / "repo"
+        workspace.mkdir()
+        _init_repo(workspace)
+
+        user_index_before = (workspace / ".git" / "index").read_bytes()
+
+        registry = RunRegistry(root / "runtime")
+        port = allocate_port()
+        run = registry.create_run(
+            agent="claude",
+            workspace=workspace,
+            target_args=("claude",),
+            proxy_port=11001,
+            viewer_port=11002,
+            control_port=port,
+        )
+        controller = RuntimeController(registry, run.run_id, port)
+        controller.start()
+        try:
+            token = str(run.control["token"])
+            assert call_controller(port, token, "start", {"title": "t"})["ok"] is True
+            (workspace / "README.md").write_text("changed\n", encoding="utf-8")
+            assert call_controller(port, token, "finish", {})["ok"] is True
+        finally:
+            controller.stop()
+
+        user_index_after = (workspace / ".git" / "index").read_bytes()
+        assert user_index_before == user_index_after
+        # isolated index exists, user index untouched
+        assert (workspace / ".git" / "index.ccwhat").exists()
+
+
+def test_claude_integration_cleans_legacy_posttooluse_hook() -> None:
+    """Upgrading from old version removes ccwhat-diff-hook.sh and PostToolUse entry."""
+    with tempfile.TemporaryDirectory() as tmp:
+        workspace = Path(tmp)
+        claude_dir = workspace / ".claude"
+        hooks_dir = claude_dir / "hooks"
+        hooks_dir.mkdir(parents=True)
+        settings_path = claude_dir / "settings.local.json"
+
+        # simulate legacy install: diff hook file + PostToolUse entry
+        legacy_hook = hooks_dir / "ccwhat-diff-hook.sh"
+        legacy_hook.write_text("#!/bin/bash\n# legacy\n", encoding="utf-8")
+        legacy_settings = {
+            "hooks": {
+                "UserPromptSubmit": [],
+                "PostToolUse": [
+                    {
+                        "matcher": "Write|Edit|MultiEdit|Bash",
+                        "hooks": [{"type": "command", "command": str(legacy_hook), "timeout": 5}],
+                    }
+                ],
+            }
+        }
+        settings_path.write_text(json.dumps(legacy_settings), encoding="utf-8")
+
+        install_claude_integration(workspace)
+
+        assert not legacy_hook.exists()
+        new_settings = json.loads(settings_path.read_text(encoding="utf-8"))
+        assert "PostToolUse" not in new_settings.get("hooks", {})
+        assert "UserPromptSubmit" in new_settings.get("hooks", {})
