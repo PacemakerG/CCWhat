@@ -2,7 +2,7 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
-## v2.4.0 - 2026-07-02
+## v2.4.0 - 2026-07-01
 
 ### Runtime Dataset 彻底重构：只保留 task 边界 git diff
 
