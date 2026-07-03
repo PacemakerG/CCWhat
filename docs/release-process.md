@@ -27,6 +27,7 @@ PATCH  向后兼容的 bug 修复
 | 文件 | 更新内容 | 时机 |
 |------|---------|------|
 | `pyproject.toml` | `version` 字段 | 改版本号时 |
+| `ccwhat/__init__.py` | `__version__` 字段 | 改版本号时，与 `pyproject.toml` 保持一致 |
 | `CHANGELOG.md` | 新增版本条目 | 写完所有改动后 |
 | `README.md` | 顶部 Changelog 链接的版本号 + `v2 版本演进` 章节 | minor/major 发版 |
 
@@ -34,14 +35,22 @@ PATCH  向后兼容的 bug 修复
 
 ## 三、逐文件操作说明
 
-### 3.1 `pyproject.toml` — 更新版本号
+### 3.1 `pyproject.toml` 和 `ccwhat/__init__.py` — 更新版本号
 
-找到 `version` 字段，直接改数字：
+两个文件都改，保持一致：
+
+`pyproject.toml`：
 
 ```toml
 [project]
 name = "ccwhat"
 version = "2.3.2"   # ← 改这里
+```
+
+`ccwhat/__init__.py`：
+
+```python
+__version__ = "2.3.2"   # ← 改这里，与 pyproject.toml 一致
 ```
 
 改完后验证：
@@ -147,22 +156,13 @@ head -5 CHANGELOG.md
 uv run python -m unittest
 ```
 
-### 4.2 提交并打 Tag
+### 4.2 提交并 push
 
 ```bash
-git add pyproject.toml CHANGELOG.md README.md
+git add pyproject.toml ccwhat/__init__.py CHANGELOG.md README.md
 git commit -m "chore: release v<version>"
-git tag v<version>
 git push origin main
-git push origin v<version>
 ```
-
-### 4.3 GitHub Release（可选）
-
-在 GitHub 仓库页面 → Releases → Draft a new release：
-- Tag：选刚打的 `v<version>`
-- Title：`v<version> — <主题>`
-- Body：直接粘贴 CHANGELOG.md 里对应条目的内容
 
 ---
 
@@ -205,7 +205,7 @@ GitHub 识别 `Co-authored-by:` 格式后，会自动在 commit 页面和 contri
 2. 合并时选择 "Squash and merge" 或 "Create a merge commit"
 3. 在 commit message 里加 Co-authored-by
 4. 在 CHANGELOG.md 对应版本条目末尾写 ### 贡献者 栏（带可点击链接）
-5. 照常走发布流程（打 tag、push）
+5. 照常走发布流程（commit、push main）
 ```
 
 ### 5.4 不需要做的事
@@ -258,11 +258,11 @@ git pull origin main
 发版前确认以下各项均已完成：
 
 - `pyproject.toml` 的 version 已更新
+- `ccwhat/__init__.py` 的 `__version__` 已更新，与 `pyproject.toml` 一致
 - `CHANGELOG.md` 顶部已插入新版本条目，日期正确
 - `README.md` 顶部链接版本号已更新
 - `README.md` v2 版本演进章节已更新（minor/major 版本时）
 - `uv run ccwhat --version` 输出正确
 - 测试全部通过
-- git tag 已打，已 push
+- 已 commit 并 push 到 `origin/main`
 - 如有 PR 贡献者，Co-authored-by 和 CHANGELOG 已注明
-- 检查历史版本无漏 tag：`git tag --sort=-v:refname | head` 对比 `pyproject.toml` 历史版本号，确认每个发布版本都有对应 tag
