@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ccwhat"
-version = "2.4.1"
+version = "2.4.2"
 description = "Record and analyze AI coding CLI traffic"
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.0",
+    "claude-code-log>=1.4.0; python_version>='3.12'",
     "fastapi>=0.115",
     "mitmproxy>=11.0.2",
     "tomli>=2.0; python_version < '3.11'",

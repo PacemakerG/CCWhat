@@ -2,6 +2,19 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
+## v2.4.2 - 2026-07-03
+
+### 修复甘特图依赖缺失
+
+v2.4.1 引入 `claude-code-log` 但未写入 `pyproject.toml`,从 GitHub 拉代码后访问 `/session-gantt` 报 `ModuleNotFoundError: No module named 'claude_code_log'`。
+
+### 修复
+
+- **补全依赖**:`pyproject.toml` 加入 `claude-code-log>=1.4.0; python_version>='3.12'`
+- **Marker 原因**:3.10/3.11 上 mitmproxy 11.0.2 与 claude-code-log 在 `typing-extensions` 版本上无解(mitmproxy 锁 `<=4.11.0`,claude-code-log 经 pydantic 间接要 `>=4.14.1`)。带 `python_version>='3.12'` marker 后,3.12+ 开箱即用,3.10/3.11 退化为仅甘特图页报错(与 v2.4.1 相同),ccwhat 本体可安装可用
+
+---
+
 ## v2.4.1 - 2026-07-02
 
 ### Timeline 页嵌入 Session Gantt 视图
