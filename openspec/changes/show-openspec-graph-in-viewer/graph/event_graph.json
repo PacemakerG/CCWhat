@@ -1,0 +1,285 @@
+{
+  "edges": [
+    {
+      "confidence": 1.0,
+      "edge_id": "OE001",
+      "evidence": [],
+      "from": "artifact:proposal",
+      "required": false,
+      "to": "artifact:design",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE002",
+      "evidence": [],
+      "from": "artifact:design",
+      "required": false,
+      "to": "artifact:tasks",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE003",
+      "evidence": [],
+      "from": "artifact:tasks",
+      "required": false,
+      "to": "artifact:specs:1",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE004",
+      "evidence": [],
+      "from": "artifact:specs:1",
+      "required": false,
+      "to": "event:1",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE005",
+      "evidence": [],
+      "from": "event:1",
+      "required": false,
+      "to": "event:2",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE006",
+      "evidence": [],
+      "from": "event:2",
+      "required": false,
+      "to": "event:3",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE007",
+      "evidence": [],
+      "from": "event:3",
+      "required": false,
+      "to": "event:4",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE008",
+      "evidence": [],
+      "from": "event:4",
+      "required": false,
+      "to": "event:5",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE009",
+      "evidence": [],
+      "from": "event:5",
+      "required": false,
+      "to": "event:6",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE010",
+      "evidence": [],
+      "from": "event:6",
+      "required": false,
+      "to": "event:7",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE011",
+      "evidence": [],
+      "from": "event:7",
+      "required": false,
+      "to": "event:8",
+      "type": "temporal"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE012",
+      "evidence": [],
+      "from": "event:8",
+      "required": false,
+      "to": "event:9",
+      "type": "temporal"
+    }
+  ],
+  "nodes": [
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "proposal",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/show-openspec-graph-in-viewer/proposal.md",
+        "size": 517
+      },
+      "event_id": null,
+      "label": "proposal.md",
+      "node_id": "artifact:proposal",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "design",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/show-openspec-graph-in-viewer/design.md",
+        "size": 778
+      },
+      "event_id": null,
+      "label": "design.md",
+      "node_id": "artifact:design",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "tasks",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/show-openspec-graph-in-viewer/tasks.md",
+        "size": 599
+      },
+      "event_id": null,
+      "label": "tasks.md",
+      "node_id": "artifact:tasks",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "specs",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/show-openspec-graph-in-viewer/specs/session-viewer/spec.md",
+        "size": 1508
+      },
+      "event_id": null,
+      "label": "specs/session-viewer/spec.md",
+      "node_id": "artifact:specs:1",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "note": "render graph in viewer",
+        "timestamp": "2026-07-08T17:45:31.188606Z",
+        "type": "change_created"
+      },
+      "event_id": null,
+      "label": "change_created render graph in viewer",
+      "node_id": "event:1",
+      "timestamp": "2026-07-08T17:45:31.188606Z",
+      "type": "change_created"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "proposal",
+        "timestamp": "2026-07-08T17:46:02.783200Z",
+        "type": "artifact_created"
+      },
+      "event_id": null,
+      "label": "artifact_created proposal",
+      "node_id": "event:2",
+      "timestamp": "2026-07-08T17:46:02.783200Z",
+      "type": "artifact_created"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "specs",
+        "timestamp": "2026-07-08T17:46:03.853128Z",
+        "type": "artifact_created"
+      },
+      "event_id": null,
+      "label": "artifact_created specs",
+      "node_id": "event:3",
+      "timestamp": "2026-07-08T17:46:03.853128Z",
+      "type": "artifact_created"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "design",
+        "timestamp": "2026-07-08T17:46:04.967139Z",
+        "type": "artifact_created"
+      },
+      "event_id": null,
+      "label": "artifact_created design",
+      "node_id": "event:4",
+      "timestamp": "2026-07-08T17:46:04.967139Z",
+      "type": "artifact_created"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "tasks",
+        "timestamp": "2026-07-08T17:46:06.110105Z",
+        "type": "artifact_created"
+      },
+      "event_id": null,
+      "label": "artifact_created tasks",
+      "node_id": "event:5",
+      "timestamp": "2026-07-08T17:46:06.110105Z",
+      "type": "artifact_created"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "note": "implemented graph viewer API and Diagnostics SVG rendering",
+        "timestamp": "2026-07-08T17:50:57.452645Z",
+        "type": "code_changed"
+      },
+      "event_id": null,
+      "label": "code_changed implemented graph viewer API and Diagnostics SVG rendering",
+      "node_id": "event:6",
+      "timestamp": "2026-07-08T17:50:57.452645Z",
+      "type": "code_changed"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "note": "verification completed",
+        "task": "4.3 Run OpenSpec validate and graph viewer tests",
+        "timestamp": "2026-07-08T17:51:14.355545Z",
+        "type": "task_completed"
+      },
+      "event_id": null,
+      "label": "task_completed 4.3 Run OpenSpec validate and graph viewer tests verification completed",
+      "node_id": "event:7",
+      "timestamp": "2026-07-08T17:51:14.355545Z",
+      "type": "task_completed"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "note": "openspec validate show-openspec-graph-in-viewer --strict and unittest graph suite passed",
+        "success": true,
+        "timestamp": "2026-07-08T17:51:14.366478Z",
+        "type": "validate_ran"
+      },
+      "event_id": null,
+      "label": "validate_ran openspec validate show-openspec-graph-in-viewer --strict and unittest graph suite passed success=True",
+      "node_id": "event:8",
+      "timestamp": "2026-07-08T17:51:14.366478Z",
+      "type": "validate_ran"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "note": "prepare v2.4.3 release with graph viewer",
+        "timestamp": "2026-07-08T17:57:16.665337Z",
+        "type": "code_changed"
+      },
+      "event_id": null,
+      "label": "code_changed prepare v2.4.3 release with graph viewer",
+      "node_id": "event:9",
+      "timestamp": "2026-07-08T17:57:16.665337Z",
+      "type": "code_changed"
+    }
+  ]
+}

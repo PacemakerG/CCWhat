@@ -1,0 +1,146 @@
+{
+  "causal_chains": [
+    {
+      "chain": [
+        "A7",
+        "S1"
+      ],
+      "confidence": "high",
+      "evidence": [
+        "archive action has no success evidence",
+        "A7 expected because: openspec_workflow_template, required_openspec_action_without_success_evidence"
+      ],
+      "root_action_id": "A7",
+      "root_cause": "OpenSpec required action is missing: archive",
+      "score": 95
+    },
+    {
+      "chain": [
+        "A5",
+        "A6",
+        "A7",
+        "S1"
+      ],
+      "confidence": "high",
+      "evidence": [
+        "archive action has no success evidence",
+        "A5 mapped events: event:7",
+        "A5 expected because: openspec_workflow_template"
+      ],
+      "root_action_id": "A5",
+      "root_cause": "OpenSpec required action is missing: apply",
+      "score": 92
+    },
+    {
+      "chain": [
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "S1"
+      ],
+      "confidence": "high",
+      "evidence": [
+        "archive action has no success evidence",
+        "A4 mapped events: artifact:tasks, event:5",
+        "A4 expected because: openspec_workflow_template"
+      ],
+      "root_action_id": "A4",
+      "root_cause": "OpenSpec required action is missing: tasks",
+      "score": 88
+    },
+    {
+      "chain": [
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "S1"
+      ],
+      "confidence": "high",
+      "evidence": [
+        "archive action has no success evidence",
+        "A3 mapped events: artifact:design, event:4",
+        "A3 expected because: openspec_workflow_template"
+      ],
+      "root_action_id": "A3",
+      "root_cause": "OpenSpec required action is missing: design",
+      "score": 84
+    },
+    {
+      "chain": [
+        "A6",
+        "A7",
+        "S1"
+      ],
+      "confidence": "high",
+      "evidence": [
+        "archive action has no success evidence",
+        "A6 mapped events: event:8",
+        "A6 expected because: openspec_workflow_template"
+      ],
+      "root_action_id": "A6",
+      "root_cause": "OpenSpec required action is missing: verify",
+      "score": 81
+    },
+    {
+      "chain": [
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "S1"
+      ],
+      "confidence": "high",
+      "evidence": [
+        "archive action has no success evidence",
+        "A2 mapped events: artifact:specs:1, event:3",
+        "A2 expected because: openspec_workflow_template"
+      ],
+      "root_action_id": "A2",
+      "root_cause": "OpenSpec required action is missing: specs",
+      "score": 80
+    },
+    {
+      "chain": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "S1"
+      ],
+      "confidence": "medium",
+      "evidence": [
+        "archive action has no success evidence",
+        "A1 mapped events: artifact:proposal, event:2",
+        "A1 expected because: openspec_workflow_template"
+      ],
+      "root_action_id": "A1",
+      "root_cause": "OpenSpec required action is missing: proposal",
+      "score": 75
+    }
+  ],
+  "missing_evidence": [
+    "archive action evidence missing"
+  ],
+  "summary": "Detected 1 OpenSpec workflow symptom(s); top suspected action is A7 with score 95.",
+  "symptoms": [
+    {
+      "action_id": "A7",
+      "evidence": [
+        "archive action has no success evidence"
+      ],
+      "severity": "high",
+      "symptom_id": "S1",
+      "type": "missing_required_action"
+    }
+  ],
+  "task_id": "show-openspec-graph-in-viewer",
+  "workflow": "openspec"
+}

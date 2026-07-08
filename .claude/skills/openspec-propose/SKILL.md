@@ -38,6 +38,10 @@ When ready to implement, run /opsx:apply
    openspec new change "<name>"
    ```
    This creates a scaffolded change at `openspec/changes/<name>/` with `.openspec.yaml`.
+   Then initialize the OpenSpec workflow graph:
+   ```bash
+   ccwhat openspec-graph sync --change "<name>" --event change_created --note "openspec new change"
+   ```
 
 3. **Get the artifact build order**
    ```bash
@@ -68,6 +72,10 @@ When ready to implement, run /opsx:apply
       - Read any completed dependency files for context
       - Create the artifact file using `template` as the structure
       - Apply `context` and `rules` as constraints - but do NOT copy them into the file
+      - Sync the OpenSpec graph after writing the artifact:
+        ```bash
+        ccwhat openspec-graph sync --change "<name>" --event artifact_created --artifact "<artifact-id>"
+        ```
       - Show brief progress: "Created <artifact-id>"
 
    b. **Continue until all `applyRequires` artifacts are complete**
@@ -82,6 +90,10 @@ When ready to implement, run /opsx:apply
 5. **Show final status**
    ```bash
    openspec status --change "<name>"
+   ```
+   Then sync the graph one final time:
+   ```bash
+   ccwhat openspec-graph sync --change "<name>"
    ```
 
 **Output**
@@ -108,3 +120,4 @@ After completing all artifacts, summarize:
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next
+- Keep `openspec/changes/<name>/graph/` synchronized by running `ccwhat openspec-graph sync` after each workflow milestone

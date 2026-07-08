@@ -62,12 +62,16 @@ Implement tasks from an OpenSpec change.
 
 6. **Implement tasks (loop until done or blocked)**
 
-   For each pending task:
-   - Show which task is being worked on
-   - Make the code changes required
-   - Keep changes minimal and focused
-   - Mark task complete in the tasks file: `- [ ]` → `- [x]`
-   - Continue to next task
+  For each pending task:
+  - Show which task is being worked on
+  - Make the code changes required
+  - Keep changes minimal and focused
+  - Mark task complete in the tasks file: `- [ ]` → `- [x]`
+  - Sync the OpenSpec graph:
+    ```bash
+    ccwhat openspec-graph sync --change "<name>" --event task_completed --task "<task description>"
+    ```
+  - Continue to next task
 
    **Pause if:**
    - Task is unclear → ask for clarification
@@ -77,11 +81,16 @@ Implement tasks from an OpenSpec change.
 
 7. **On completion or pause, show status**
 
-   Display:
-   - Tasks completed this session
-   - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
-   - If paused: explain why and wait for guidance
+  Display:
+  - Tasks completed this session
+  - Overall progress: "N/M tasks complete"
+  - If all done: suggest archive
+  - If paused: explain why and wait for guidance
+  - If validation is run, record it:
+    ```bash
+    ccwhat openspec-graph sync --change "<name>" --event validate_ran --success
+    ```
+    Use `--failure` when validation fails.
 
 **Output During Implementation**
 

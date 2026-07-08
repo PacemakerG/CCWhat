@@ -67,6 +67,10 @@ Implement tasks from an OpenSpec change.
    - Make the code changes required
    - Keep changes minimal and focused
    - Mark task complete in the tasks file: `- [ ]` → `- [x]`
+   - Sync the OpenSpec graph:
+     ```bash
+     ccwhat openspec-graph sync --change "<name>" --event task_completed --task "<task description>"
+     ```
    - Continue to next task
 
    **Pause if:**
@@ -82,6 +86,11 @@ Implement tasks from an OpenSpec change.
    - Overall progress: "N/M tasks complete"
    - If all done: suggest archive
    - If paused: explain why and wait for guidance
+   - If validation is run, record it with:
+     ```bash
+     ccwhat openspec-graph sync --change "<name>" --event validate_ran --success
+     ```
+     Use `--failure` when validation fails.
 
 **Output During Implementation**
 
@@ -141,6 +150,7 @@ What would you like to do?
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
+- Keep `openspec/changes/<name>/graph/` synchronized after task and validation milestones
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
 

@@ -31,6 +31,10 @@ When ready to implement, run /opsx-apply
    openspec new change "<name>"
    ```
    This creates a scaffolded change in the planning home resolved by the CLI with `.openspec.yaml`.
+   Then initialize graph artifacts:
+   ```bash
+   ccwhat openspec-graph sync --change "<name>" --event change_created --note "openspec new change"
+   ```
 
 3. **Get the artifact build order**
    ```bash
@@ -62,6 +66,10 @@ When ready to implement, run /opsx-apply
       - Read any completed dependency files for context
       - Create the artifact file using `template` as the structure and write it to `resolvedOutputPath`
       - Apply `context` and `rules` as constraints - but do NOT copy them into the file
+      - Sync the OpenSpec graph:
+        ```bash
+        ccwhat openspec-graph sync --change "<name>" --event artifact_created --artifact "<artifact-id>"
+        ```
       - Show brief progress: "Created <artifact-id>"
 
    b. **Continue until all `applyRequires` artifacts are complete**
@@ -76,6 +84,10 @@ When ready to implement, run /opsx-apply
 5. **Show final status**
    ```bash
    openspec status --change "<name>"
+   ```
+   Then run:
+   ```bash
+   ccwhat openspec-graph sync --change "<name>"
    ```
 
 **Output**

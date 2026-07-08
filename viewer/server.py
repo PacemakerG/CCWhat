@@ -1305,6 +1305,33 @@ def _attachment_response(data: bytes, filename: str, media_type: str) -> Respons
     )
 
 
+_OPENSPEC_CHANGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+def _load_openspec_graph_response(change: str, repo_root: Path) -> tuple[int, dict[str, Any]]:
+    change = change.strip("/")
+    if not _OPENSPEC_CHANGE_RE.fullmatch(change):
+        return 400, {"ok": False, "error": "invalid OpenSpec change name"}
+    graph_dir = repo_root / "openspec" / "changes" / change / "graph"
+    if not graph_dir.is_dir():
+        return 404, {"ok": False, "error": f"OpenSpec graph not found for change: {change}"}
+
+    payload: dict[str, Any] = {"ok": True, "change": change}
+    for key, filename in (
+        ("actionGraph", "action_graph.json"),
+        ("eventGraph", "event_graph.json"),
+        ("diagnosis", "diagnosis.json"),
+    ):
+        path = graph_dir / filename
+        if not path.exists():
+            return 404, {"ok": False, "error": f"Missing graph artifact: {filename}"}
+        try:
+            payload[key] = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return 500, {"ok": False, "error": f"Failed to read {filename}: {exc}"}
+    return 200, payload
+
+
 def create_app(
     projects_dir: Path,
     logs_dir: Path,
@@ -1502,6 +1529,13 @@ def create_app(
         except DatasetRegistryError as exc:
             return _json({"ok": False, "error": str(exc)}, exc.status)
         return _attachment_response(data, filename, "application/gzip")
+
+    @app.get("/api/openspec-graph/{change:path}", include_in_schema=False)
+    async def openspec_graph(change: str) -> JSONResponse:
+        status, data = await run_in_threadpool(
+            lambda: _load_openspec_graph_response(change, Path(__file__).parent.parent)
+        )
+        return _json(data, status)
 
     @app.get("/api/analysis-report/{report_id}/export", include_in_schema=False)
     async def analysis_report_export(report_id: str) -> Response:

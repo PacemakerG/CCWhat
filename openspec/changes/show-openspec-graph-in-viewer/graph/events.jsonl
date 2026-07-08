@@ -1,0 +1,9 @@
+{"note": "render graph in viewer", "timestamp": "2026-07-08T17:45:31.188606Z", "type": "change_created"}
+{"artifact": "proposal", "timestamp": "2026-07-08T17:46:02.783200Z", "type": "artifact_created"}
+{"artifact": "specs", "timestamp": "2026-07-08T17:46:03.853128Z", "type": "artifact_created"}
+{"artifact": "design", "timestamp": "2026-07-08T17:46:04.967139Z", "type": "artifact_created"}
+{"artifact": "tasks", "timestamp": "2026-07-08T17:46:06.110105Z", "type": "artifact_created"}
+{"note": "implemented graph viewer API and Diagnostics SVG rendering", "timestamp": "2026-07-08T17:50:57.452645Z", "type": "code_changed"}
+{"note": "verification completed", "task": "4.3 Run OpenSpec validate and graph viewer tests", "timestamp": "2026-07-08T17:51:14.355545Z", "type": "task_completed"}
+{"note": "openspec validate show-openspec-graph-in-viewer --strict and unittest graph suite passed", "success": true, "timestamp": "2026-07-08T17:51:14.366478Z", "type": "validate_ran"}
+{"note": "prepare v2.4.3 release with graph viewer", "timestamp": "2026-07-08T17:57:16.665337Z", "type": "code_changed"}

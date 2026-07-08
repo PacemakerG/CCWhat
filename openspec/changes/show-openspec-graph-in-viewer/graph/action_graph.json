@@ -1,0 +1,236 @@
+{
+  "actions": [
+    {
+      "action_id": "A1",
+      "event_ids": [
+        "artifact:proposal",
+        "event:2"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "artifact:proposal",
+            "event:2"
+          ],
+          "source": "artifact_file"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Proposal",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 75,
+      "type": "proposal"
+    },
+    {
+      "action_id": "A2",
+      "event_ids": [
+        "artifact:specs:1",
+        "event:3"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "artifact:specs:1",
+            "event:3"
+          ],
+          "source": "artifact_file"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Specs",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 80,
+      "type": "specs"
+    },
+    {
+      "action_id": "A3",
+      "event_ids": [
+        "artifact:design",
+        "event:4"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "artifact:design",
+            "event:4"
+          ],
+          "source": "artifact_file"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Design",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 84,
+      "type": "design"
+    },
+    {
+      "action_id": "A4",
+      "event_ids": [
+        "artifact:tasks",
+        "event:5"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "artifact:tasks",
+            "event:5"
+          ],
+          "source": "artifact_file"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Tasks",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 88,
+      "type": "tasks"
+    },
+    {
+      "action_id": "A5",
+      "event_ids": [
+        "event:7"
+      ],
+      "evidence": [
+        {
+          "completed_tasks": [
+            "1.1 编写 proposal/design/spec/tasks",
+            "1.2 同步 graph artifact 事件",
+            "2.1 新增 `/api/openspec-graph/<change>`",
+            "2.2 校验 change 名称，避免路径穿越",
+            "2.3 返回 action/event/diagnosis JSON",
+            "3.1 Diagnostics 页面新增 OpenSpec Graph 控件",
+            "3.2 渲染 Action Graph 点线图",
+            "3.3 渲染 Event Graph 点线图",
+            "3.4 处理 loading/error/empty 状态",
+            "4.1 编写 API 测试",
+            "4.2 编写前端 DOM 测试",
+            "4.3 运行 OpenSpec validate 和相关测试"
+          ],
+          "confidence": "high",
+          "source": "tasks.md"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Apply",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 92,
+      "type": "apply"
+    },
+    {
+      "action_id": "A6",
+      "event_ids": [
+        "event:8"
+      ],
+      "evidence": [],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Verify",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 81,
+      "type": "verify"
+    },
+    {
+      "action_id": "A7",
+      "event_ids": [],
+      "evidence": [],
+      "expected_because": [
+        "openspec_workflow_template",
+        "required_openspec_action_without_success_evidence"
+      ],
+      "label": "Archive",
+      "required": true,
+      "status": "missing",
+      "suspicion_score": 95,
+      "type": "archive"
+    }
+  ],
+  "edges": [
+    {
+      "confidence": 1.0,
+      "edge_id": "AE001",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A1",
+      "required": true,
+      "to": "A2",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE002",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A2",
+      "required": true,
+      "to": "A3",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE003",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A3",
+      "required": true,
+      "to": "A4",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE004",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A4",
+      "required": true,
+      "to": "A5",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE005",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A5",
+      "required": true,
+      "to": "A6",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE006",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A6",
+      "required": true,
+      "to": "A7",
+      "type": "workflow_expected"
+    }
+  ],
+  "workflow": "openspec"
+}

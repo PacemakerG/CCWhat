@@ -4,9 +4,11 @@ import click
 
 from ccwhat import __version__
 from ccwhat.commands.clear_req_resp import clear_req_resp
+from ccwhat.commands.diagnose import diagnose
 from ccwhat.commands.discover import discover
 from ccwhat.commands.export import export
 from ccwhat.commands.import_ import import_
+from ccwhat.commands.openspec_graph import openspec_graph
 from ccwhat.commands.proxy import proxy
 from ccwhat.commands.run import run
 from ccwhat.commands.setup import setup
@@ -114,3 +116,5 @@ cli.add_command(export)
 cli.add_command(import_)
 cli.add_command(clear_req_resp)
 cli.add_command(start_mc)  # deprecated, hidden alias
+cli.add_command(diagnose)
+cli.add_command(openspec_graph)

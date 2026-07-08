@@ -2,6 +2,26 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
+## v2.4.3 - 2026-07-09
+
+### OpenSpec DAG 图诊断 MVP
+
+新增 OpenSpec 固定流程的 Action Graph / Event Graph 生成与 Viewer 展示，让一次 change 的粗粒度流程节点和细粒度事件证据可以直接在前端以点线图查看。
+
+### 新增
+
+- **诊断图模型**：新增 Event Graph、OpenSpec Action Graph、事件映射、症状检测和反向归因打分，输出 `event_graph.json`、`action_graph.json` 和 `diagnosis.json`
+- **OpenSpec 流程同步**：新增 `ccwhat openspec-graph sync`，并在 OpenSpec skill / slash command 文档中绑定 propose、apply、archive 节点的 graph 产物同步
+- **Viewer 图展示**：Diagnostics 页面新增 OpenSpec Graph 面板，支持按 change 名称加载粗图 Action Graph 和细图 Event Graph
+
+### 改进
+
+- **CLI 诊断入口**：新增 `ccwhat diagnose --dataset <path> --task-id <id> --output <dir> --no-llm`，第一版默认不调用 LLM
+- **后端 API**：新增 `/api/openspec-graph/<change>`，读取 active change 下的 graph JSON 并返回给前端
+- **测试覆盖**：补充诊断图、OpenSpec graph sync、Viewer graph 面板和 API helper 的单元测试
+
+---
+
 ## v2.4.2 - 2026-07-03
 
 ### 修复甘特图依赖缺失

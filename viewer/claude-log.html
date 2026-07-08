@@ -1614,6 +1614,22 @@ body {
   /* Markdown page */
   .md-page { max-width: 860px; margin: 0 auto; padding: 20px 14px; }
   .page-title { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; letter-spacing: -0.01em; }
+  .ops-graph-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .ops-graph-controls .field { min-width: 260px; max-width: 420px; flex: 1; }
+  .ops-graph-status { font-size: 11px; color: var(--text-secondary); }
+  .ops-graph-layout { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .ops-graph-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; }
+  .ops-graph-title { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+  .ops-graph-meta { font-size: 11px; color: var(--text-tertiary); }
+  .ops-graph-canvas { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); overflow: auto; }
+  .ops-graph-svg { display: block; min-width: 100%; }
+  .ops-graph-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; margin-bottom: 10px; }
+  .ops-graph-stat { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); padding: 8px 10px; }
+  .ops-graph-stat-k { font-size: 10px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 2px; }
+  .ops-graph-stat-v { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .ops-graph-node-label { font-family: var(--font-sans); font-size: 11px; fill: var(--text-primary); font-weight: 600; }
+  .ops-graph-node-sub { font-family: var(--font-mono); font-size: 9px; fill: var(--text-secondary); }
+  .ops-graph-edge-label { font-family: var(--font-mono); font-size: 8px; fill: var(--text-tertiary); }
 
   /* ── Task workbench dual-pane ── */
   .task-workbench { display: flex; flex: 1; overflow: hidden; height: 100%; }
@@ -2317,6 +2333,17 @@ pre, code, .code-block, .diff-schema-pre { font-family: var(--font-mono); }
             <button class="btn" onclick="refreshDiagnostics()" data-i18n="refresh_diagnostics">刷新诊断</button>
             <span style="font-size:11px;color:var(--text-secondary)" id="diagStatus">基于当前 session 和 task 数据生成诊断</span>
           </div>
+          <div class="section">
+            <div class="sec-hdr"><span class="sec-title" data-i18n="openspec_graph">OpenSpec Graph</span></div>
+            <div class="sec-body">
+              <div class="ops-graph-controls">
+                <input class="field" id="openspecGraphChangeInput" type="text" placeholder="OpenSpec change name" data-i18n-placeholder="openspec_change_placeholder" onkeydown="onOpenSpecGraphKeydown(event)">
+                <button class="btn" onclick="loadOpenSpecGraph()" data-i18n="load_graph">加载图</button>
+                <span class="ops-graph-status" id="openspecGraphStatus" data-i18n="openspec_graph_hint">读取 openspec/changes/&lt;change&gt;/graph</span>
+              </div>
+              <div id="openspecGraphContent"><div class="placeholder">输入 change name 后加载 Action Graph 和 Event Graph</div></div>
+            </div>
+          </div>
           <div id="diagContent"><div class="placeholder">选择一个 session 并加载 task 切分后查看诊断</div></div>
         </div>
       </div>
@@ -2547,7 +2574,7 @@ const CCWHAT_COPY = {
     results: '结果', task: '任务', turn: 'Turn', event: '事件', session: '会话',
     workspace: '工作区', project: '项目', tasks: '任务', overview: '概览', timeline: '时间线',
     evidence: '证据', req_resp: '请求/响应', diff: '对比', analysis: '分析',
-    diagnostics: '诊断', export: '导出', settings: '设置',
+    diagnostics: '图诊断', export: '导出', settings: '设置',
     task_segmentation: '任务切分', session_overview: '会话概览',
     auto_segment: '自动切分', manual_segment: '手动切分', rename: '重命名',
     save: '保存', cancel: '取消', default_view: '默认视图', debug_view: '调试视图',
@@ -2556,6 +2583,9 @@ const CCWHAT_COPY = {
     exit_editing: '退出编辑', analyze_report: '报告分析', analyze_current_session: '分析当前 Session', analyzing: '分析中…', open_in_new_tab: '在新标签页中打开',
     turn_diff_overview: 'Turn 对比概览', refresh_turn_diff: '刷新 Turn 对比',
     refresh_diagnostics: '刷新诊断', session_export: '会话导出', task_trace_export: '任务轨迹导出',
+    openspec_graph: 'OpenSpec 图谱', load_graph: '加载图', openspec_change_placeholder: 'OpenSpec change 名称',
+    openspec_graph_hint: '读取 openspec/changes/<change>/graph',
+    action_graph: '粗图：Action Graph', event_graph: '细图：Event Graph',
     open_export_dialog: '打开导出弹窗', dataset_preview: '数据集预览', viewer: '查看器', theme: '主题',
     filter_user: '用户', filter_assistant: '助手', filter_system: '系统', filter_attachment: '附件',
     filter_permission: '权限', filter_file_snapshot: '文件快照', filter_queue: '队列', filter_other: '其他',
@@ -2584,7 +2614,7 @@ const CCWHAT_COPY = {
     results: 'Results', task: 'Task', turn: 'Turn', event: 'Event', session: 'Session',
     workspace: 'Workspace', project: 'Project', tasks: 'Tasks', overview: 'Overview', timeline: 'Timeline',
     evidence: 'Evidence', req_resp: 'Req / Resp', diff: 'Diff', analysis: 'Analysis',
-    diagnostics: 'Diagnostics', export: 'Export', settings: 'Settings',
+    diagnostics: 'Graph Diagnostics', export: 'Export', settings: 'Settings',
     task_segmentation: 'Task Segmentation', session_overview: 'Session Overview',
     auto_segment: 'Auto segment', manual_segment: 'Manual segment', rename: 'Rename',
     save: 'Save', cancel: 'Cancel', default_view: 'Default view', debug_view: 'Debug view',
@@ -2593,6 +2623,9 @@ const CCWHAT_COPY = {
     exit_editing: 'Exit editing', analyze_report: 'Analyze report', analyze_current_session: 'Analyze current Session', analyzing: 'Analyzing…', open_in_new_tab: 'Open in new tab',
     turn_diff_overview: 'Turn Diff Overview', refresh_turn_diff: 'Refresh Turn Diff',
     refresh_diagnostics: 'Refresh diagnostics', session_export: 'Session Export', task_trace_export: 'Task Trace Export',
+    openspec_graph: 'OpenSpec Graph', load_graph: 'Load graph', openspec_change_placeholder: 'OpenSpec change name',
+    openspec_graph_hint: 'Reads openspec/changes/<change>/graph',
+    action_graph: 'Coarse: Action Graph', event_graph: 'Fine: Event Graph',
     open_export_dialog: 'Open export dialog', dataset_preview: 'Dataset Preview', viewer: 'Viewer', theme: 'Theme',
     filter_user: 'User', filter_assistant: 'Assistant', filter_system: 'System', filter_attachment: 'Attachment',
     filter_permission: 'Permission', filter_file_snapshot: 'File snapshot', filter_queue: 'Queue', filter_other: 'Other',
@@ -6792,6 +6825,7 @@ function buildStringListFieldRow(label, oldList, newList, hasBaseline) {
 }
 
 function renderDiagnosticsPage() {
+  ensureOpenSpecGraphInputDefault();
   const el = document.getElementById('diagContent');
   if (!el) return;
   const sid = document.getElementById('sessionSel').value;
@@ -6859,6 +6893,188 @@ function renderDiagnosticsPage() {
 }
 
 function refreshDiagnostics() { renderDiagnosticsPage(); }
+
+const OPENSPEC_GRAPH_CHANGE_KEY = 'ccwhat-openspec-graph-change';
+
+function ensureOpenSpecGraphInputDefault() {
+  const input = document.getElementById('openspecGraphChangeInput');
+  if (!input || input.dataset.initialized === '1') return;
+  const params = new URLSearchParams(window.location.search);
+  const candidate = params.get('openspecChange') || localStorage.getItem(OPENSPEC_GRAPH_CHANGE_KEY) || '';
+  input.value = candidate;
+  input.dataset.initialized = '1';
+}
+
+function onOpenSpecGraphKeydown(event) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  loadOpenSpecGraph();
+}
+
+async function loadOpenSpecGraph() {
+  ensureOpenSpecGraphInputDefault();
+  const input = document.getElementById('openspecGraphChangeInput');
+  const statusEl = document.getElementById('openspecGraphStatus');
+  const contentEl = document.getElementById('openspecGraphContent');
+  const change = (input?.value || '').trim();
+  if (!contentEl) return;
+  if (!change) {
+    contentEl.innerHTML = '<div class="placeholder">请输入 OpenSpec change 名称</div>';
+    if (statusEl) statusEl.textContent = t('openspec_graph_hint');
+    return;
+  }
+
+  localStorage.setItem(OPENSPEC_GRAPH_CHANGE_KEY, change);
+  if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? '加载图谱中…' : 'Loading graph…';
+  contentEl.innerHTML = '<div class="placeholder">Loading OpenSpec graph…</div>';
+  const url = `${apiBase()}/api/openspec-graph/${encodeURIComponent(change)}`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw await apiError(resp, url);
+    const payload = await resp.json();
+    contentEl.innerHTML = renderOpenSpecGraph(payload);
+    if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? `已加载 ${change}` : `Loaded ${change}`;
+  } catch (e) {
+    contentEl.innerHTML = `<div class="placeholder" style="color:var(--danger)">加载失败: ${esc(e.message || e)}</div>`;
+    if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? '加载失败' : 'Load failed';
+  }
+}
+
+function renderOpenSpecGraph(payload) {
+  const actionGraph = payload?.actionGraph || {};
+  const eventGraph = payload?.eventGraph || {};
+  const diagnosis = payload?.diagnosis || {};
+  const actions = actionGraph.actions || [];
+  const actionEdges = actionGraph.edges || [];
+  const events = eventGraph.nodes || [];
+  const eventEdges = eventGraph.edges || [];
+  const symptoms = diagnosis.symptoms || [];
+  const chains = diagnosis.causal_chains || [];
+
+  const actionNodes = actions.map(action => ({
+    id: action.action_id,
+    label: action.label || action.type || action.action_id,
+    sub: `${action.status || 'unknown'} · ${(action.event_ids || []).length} events`,
+    status: action.status || 'unknown'
+  }));
+  const eventNodes = events.map(node => ({
+    id: node.node_id,
+    label: node.label || node.type || node.node_id,
+    sub: node.type || node.node_id,
+    status: eventNodeStatus(node)
+  }));
+
+  return `<div class="ops-graph-summary">
+      ${renderOpenSpecStat('Change', payload.change || '—')}
+      ${renderOpenSpecStat('Actions', actions.length)}
+      ${renderOpenSpecStat('Events', events.length)}
+      ${renderOpenSpecStat('Symptoms', symptoms.length)}
+      ${renderOpenSpecStat('Top Chains', chains.length)}
+    </div>
+    <div class="ops-graph-layout">
+      ${renderPointLineGraph(t('action_graph'), actionNodes, actionEdges, 'action')}
+      ${renderPointLineGraph(t('event_graph'), eventNodes, eventEdges, 'event')}
+    </div>`;
+}
+
+function renderOpenSpecStat(label, value) {
+  return `<div class="ops-graph-stat">
+    <div class="ops-graph-stat-k">${esc(label)}</div>
+    <div class="ops-graph-stat-v">${esc(value)}</div>
+  </div>`;
+}
+
+function eventNodeStatus(node) {
+  const type = String(node?.type || '');
+  if (/error|failed|failure/i.test(type)) return 'failed';
+  if (/artifact|edit|command|tool|claim|event/i.test(type)) return 'observed';
+  return 'unknown';
+}
+
+function graphStatusColors(status) {
+  if (status === 'observed') return { fill: 'var(--type-asst-bg)', stroke: 'var(--type-asst-fg)' };
+  if (status === 'missing' || status === 'failed') return { fill: 'color-mix(in srgb, var(--danger) 14%, var(--bg-elevated))', stroke: 'var(--danger)' };
+  if (status === 'skipped') return { fill: 'color-mix(in srgb, var(--warning) 16%, var(--bg-elevated))', stroke: 'var(--warning)' };
+  return { fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)' };
+}
+
+function renderPointLineGraph(title, nodes, edges, kind) {
+  if (!nodes.length) {
+    return `<div>
+      <div class="ops-graph-head"><span class="ops-graph-title">${esc(title)}</span></div>
+      <div class="ops-graph-canvas"><div class="placeholder">No graph nodes</div></div>
+    </div>`;
+  }
+
+  const positions = {};
+  let width;
+  let height;
+  if (kind === 'action') {
+    width = Math.max(720, 120 + nodes.length * 150);
+    height = 180;
+    nodes.forEach((node, i) => {
+      positions[node.id] = { x: 80 + i * 150, y: 78 };
+    });
+  } else {
+    const cols = Math.min(4, Math.max(1, nodes.length));
+    const tileW = 180;
+    const tileH = 112;
+    const rows = Math.ceil(nodes.length / cols);
+    width = Math.max(720, 80 + cols * tileW);
+    height = Math.max(190, 55 + rows * tileH);
+    nodes.forEach((node, i) => {
+      positions[node.id] = { x: 80 + (i % cols) * tileW, y: 64 + Math.floor(i / cols) * tileH };
+    });
+  }
+
+  let edgeSvg = '';
+  let nodeSvg = '';
+  const nodeIds = new Set(nodes.map(node => node.id));
+  for (const edge of edges || []) {
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
+    const from = positions[edge.from];
+    const to = positions[edge.to];
+    const midX = (from.x + to.x) / 2;
+    const midY = (from.y + to.y) / 2 - 5;
+    edgeSvg += `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="var(--border-strong)" stroke-width="1.2" marker-end="url(#${kind}Arrow)"></line>
+      <text class="ops-graph-edge-label" x="${midX}" y="${midY}" text-anchor="middle">${esc(edge.type || '')}</text>`;
+  }
+
+  for (const node of nodes) {
+    const pos = positions[node.id];
+    const colors = graphStatusColors(node.status);
+    const label = truncateGraphText(node.label, 22);
+    const sub = truncateGraphText(node.sub || node.id, 28);
+    nodeSvg += `<g>
+      <rect x="${pos.x - 58}" y="${pos.y - 24}" width="116" height="48" rx="6" fill="${colors.fill}" stroke="${colors.stroke}" stroke-width="1.2"></rect>
+      <text class="ops-graph-node-label" x="${pos.x}" y="${pos.y - 3}" text-anchor="middle">${esc(label)}</text>
+      <text class="ops-graph-node-sub" x="${pos.x}" y="${pos.y + 14}" text-anchor="middle">${esc(sub)}</text>
+    </g>`;
+  }
+
+  return `<div>
+    <div class="ops-graph-head">
+      <span class="ops-graph-title">${esc(title)}</span>
+      <span class="ops-graph-meta">${nodes.length} nodes · ${(edges || []).length} edges</span>
+    </div>
+    <div class="ops-graph-canvas">
+      <svg class="ops-graph-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="${esc(title)}">
+        <defs>
+          <marker id="${kind}Arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border-strong)"></path>
+          </marker>
+        </defs>
+        ${edgeSvg}
+        ${nodeSvg}
+      </svg>
+    </div>
+  </div>`;
+}
+
+function truncateGraphText(value, limit) {
+  const s = String(value ?? '');
+  return s.length > limit ? `${s.slice(0, Math.max(0, limit - 1))}…` : s;
+}
 
 function renderExportPage() {
   // Already rendered statically in HTML; just update dynamic state

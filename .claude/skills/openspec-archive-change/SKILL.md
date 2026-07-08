@@ -67,6 +67,11 @@ Archive a completed change in the experimental workflow.
 
 5. **Perform the archive**
 
+   Before moving the change directory, record the archive intent and sync graph artifacts:
+   ```bash
+   ccwhat openspec-graph sync --change "<name>" --event archive_ran --success
+   ```
+
    Create the archive directory if it doesn't exist:
    ```bash
    mkdir -p openspec/changes/archive
@@ -109,6 +114,7 @@ All artifacts complete. All tasks complete.
 - Use artifact graph (openspec status --json) for completion checking
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
+- Sync `graph/` before moving the change to archive so graph artifacts travel with the archived change
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting

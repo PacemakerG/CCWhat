@@ -63,6 +63,11 @@ Archive a completed change in the experimental workflow.
 
 5. **Perform the archive**
 
+   Before moving the change directory, record archive and sync graph artifacts:
+   ```bash
+   ccwhat openspec-graph sync --change "<name>" --event archive_ran --success
+   ```
+
    Create an `archive` directory under `planningHome.changesDir` if it doesn't exist:
    ```bash
    mkdir -p "<planningHome.changesDir>/archive"
