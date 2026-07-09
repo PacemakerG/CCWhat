@@ -18,7 +18,7 @@
 
 <p>
   <strong>Changelog:</strong>
-  <a href="./CHANGELOG.md">v2.4.3</a> ·
+  <a href="./CHANGELOG.md">v2.4.4</a> ·
   <a href="./CHANGELOG.md">更新日志</a>
 </p>
 
@@ -265,6 +265,7 @@ Windows 遇到端口被 TCP excluded port range 拒绝时，按错误提示换�
 
 **v2.4** — 当前版本
 
+- OpenSpec DAG 图诊断：Step 级 Event Graph + 固定 7 节点 Action Graph + source binding（session / dataset / milestone fallback）
 - Runtime Dataset 重构：只保留 task 边界 git diff（`task.diff`）+ 边界元数据（`task.json`），砍掉 step-by-step diff / `task_trace.json` / `diff_total.patch`
 - git index 隔离：`.git/index.ccwhat` 零污染用户工作区
 - Agent 行为轨迹改由事后从原始日志抽取
