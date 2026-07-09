@@ -2,6 +2,27 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
+## v2.4.4 - 2026-07-10
+
+### Event Graph 升级：Session Step 级细图与服务端 Graph 同步
+
+将 OpenSpec Graph 的细图主干从 milestone/artifact 级别升级为真实 session normalized step 事件，并引入 source binding 机制区分数据源优先级。
+
+### 新增
+
+- **Step 级 Event Graph**：节点粒度从 `artifact_present` / `validate_ran` 下钻到 `file_read` / `file_edit` / `command` / `tool_result` / `final_claim`，每个节点携带 tool_name、tool_use_id、files、command、turn_index 等字段
+- **数据源绑定（source binding）**：`openspec-graph sync` 支持 `--session-id` / `--dataset-id` / `--task-id`，按 dataset task trace → session task → session full → milestone fallback 优先级自动降级，输出附带 `source_kind` 和 `missing_evidence`
+- **多类型边**：Event Graph 新增 `tool_result_of`、`reads_before_edit`、`edit_before_command`、`claim_after_action` 边，不再仅有时间顺序
+
+### 改进
+
+- **Event Graph 精简**：当前仅保留 `temporal`（时间线）和 `tool_result_of`（工具调用与结果关联）两条最直接的边，保持结构清晰；更多边类型（reads_before_edit、edit_before_command 等）可在后续按需引入
+- **Action Graph 保持固定**：七节点 OpenSpec DAG（proposal → specs → design → tasks → apply → verify → archive）不变，Event-to-Action mapping 输出 mapping reasons
+- **CLI 参数扩展**：`openspec-graph sync` 新增 `--session-id`、`--task-id`、`--dataset-id`、`--projects-dir` 参数
+- **测试覆盖**：新增 session step fixture 和 `test_sync_uses_session_step_events_when_bound` 测试
+
+---
+
 ## v2.4.3 - 2026-07-09
 
 ### OpenSpec DAG 图诊断 MVP

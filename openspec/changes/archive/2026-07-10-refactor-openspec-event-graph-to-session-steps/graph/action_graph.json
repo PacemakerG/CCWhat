@@ -1,0 +1,254 @@
+{
+  "actions": [
+    {
+      "action_id": "A1",
+      "event_ids": [
+        "artifact:proposal"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "artifact:proposal"
+          ],
+          "source": "artifact_file"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Proposal",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 80,
+      "type": "proposal"
+    },
+    {
+      "action_id": "A2",
+      "event_ids": [
+        "artifact:specs:1",
+        "artifact:specs:2"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "artifact:specs:1",
+            "artifact:specs:2"
+          ],
+          "source": "artifact_file"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Specs",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 85,
+      "type": "specs"
+    },
+    {
+      "action_id": "A3",
+      "event_ids": [
+        "artifact:design"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "artifact:design"
+          ],
+          "source": "artifact_file"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Design",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 89,
+      "type": "design"
+    },
+    {
+      "action_id": "A4",
+      "event_ids": [
+        "artifact:tasks"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "artifact:tasks"
+          ],
+          "source": "artifact_file"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Tasks",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 93,
+      "type": "tasks"
+    },
+    {
+      "action_id": "A5",
+      "event_ids": [],
+      "evidence": [
+        {
+          "completed_tasks": [
+            "1.1 编写 proposal/design/spec/tasks",
+            "1.2 运行 `openspec validate refactor-openspec-event-graph-to-session-steps --strict`",
+            "2.1 定义 OpenSpec graph source binding schema",
+            "2.2 `ccwhat openspec-graph sync` 支持 `--session-id`、`--task-id`、`--dataset-id`",
+            "2.3 graph 输出写入 binding metadata 和 source confidence",
+            "2.4 缺少 session/task 证据时写入 `missing_evidence`",
+            "3.1 复用 session normalized events 构建 step 级 Event Graph",
+            "3.2 支持 Dataset task trace 作为最高优先级输入",
+            "3.3 保留 milestone/artifact 作为补充 evidence 或 fallback",
+            "3.4 Event 节点保留 turn index、tool name、tool call id、command、files、summary、raw_ref",
+            "4.1 Action Graph 保持固定 OpenSpec 七节点 DAG",
+            "4.2 Event-to-Action mapping 输出 mapping reasons",
+            "4.3 清理 OpenSpec graph sync 中 milestone 级 Event Graph 主路径",
+            "4.4 保留或重建最小 graph 输出骨架，不在本 change 中实现新 attribution scorer",
+            "5.1 Event Graph 展示 step 级节点，而不是 milestone 主干",
+            "5.2 Action 节点展示映射的 event count 和 mapping confidence",
+            "5.3 点击或选择 Action 时可定位/高亮对应 Event",
+            "5.4 fallback 模式明确提示缺少 session step evidence",
+            "6.1 添加 session step fixture 或最小 mock session",
+            "6.2 验证 Event Graph 节点数量接近 normalized events 数量",
+            "6.3 验证 OpenSpec Action Graph 仍为固定七节点",
+            "6.4 验证 Viewer 加载 step-level graph"
+          ],
+          "confidence": "high",
+          "source": "tasks.md"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Apply",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 97,
+      "type": "apply"
+    },
+    {
+      "action_id": "A6",
+      "event_ids": [],
+      "evidence": [],
+      "expected_because": [
+        "openspec_workflow_template",
+        "required_openspec_action_without_success_evidence"
+      ],
+      "label": "Verify",
+      "required": true,
+      "status": "missing",
+      "suspicion_score": 96,
+      "type": "verify"
+    },
+    {
+      "action_id": "A7",
+      "event_ids": [
+        "event:1"
+      ],
+      "evidence": [],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Archive",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 0,
+      "type": "archive"
+    }
+  ],
+  "edges": [
+    {
+      "confidence": 1.0,
+      "edge_id": "AE001",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A1",
+      "required": true,
+      "to": "A2",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE002",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A2",
+      "required": true,
+      "to": "A3",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE003",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A3",
+      "required": true,
+      "to": "A4",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE004",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A4",
+      "required": true,
+      "to": "A5",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE005",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A5",
+      "required": true,
+      "to": "A6",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE006",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A6",
+      "required": true,
+      "to": "A7",
+      "type": "workflow_expected"
+    }
+  ],
+  "metadata": {
+    "change": "refactor-openspec-event-graph-to-session-steps",
+    "dataset_id": null,
+    "milestone_event_count": 1,
+    "milestones": [
+      {
+        "success": true,
+        "timestamp": "2026-07-09T18:41:05.121744Z",
+        "type": "archive_ran"
+      }
+    ],
+    "session_id": null,
+    "source_confidence": "low",
+    "source_kind": "milestone_fallback",
+    "task_id": null
+  },
+  "workflow": "openspec"
+}

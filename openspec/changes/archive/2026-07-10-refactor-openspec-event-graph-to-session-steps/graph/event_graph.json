@@ -1,0 +1,145 @@
+{
+  "edges": [
+    {
+      "confidence": 1.0,
+      "edge_id": "OE001",
+      "evidence": [],
+      "from": "artifact:proposal",
+      "required": false,
+      "to": "artifact:design",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE002",
+      "evidence": [],
+      "from": "artifact:design",
+      "required": false,
+      "to": "artifact:tasks",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE003",
+      "evidence": [],
+      "from": "artifact:tasks",
+      "required": false,
+      "to": "artifact:specs:1",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE004",
+      "evidence": [],
+      "from": "artifact:specs:1",
+      "required": false,
+      "to": "artifact:specs:2",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "OE005",
+      "evidence": [],
+      "from": "artifact:specs:2",
+      "required": false,
+      "to": "event:1",
+      "type": "timeline"
+    }
+  ],
+  "metadata": {
+    "change": "refactor-openspec-event-graph-to-session-steps",
+    "dataset_id": null,
+    "milestone_event_count": 1,
+    "milestones": [
+      {
+        "success": true,
+        "timestamp": "2026-07-09T18:41:05.121744Z",
+        "type": "archive_ran"
+      }
+    ],
+    "session_id": null,
+    "source_confidence": "low",
+    "source_kind": "milestone_fallback",
+    "task_id": null
+  },
+  "nodes": [
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "proposal",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/refactor-openspec-event-graph-to-session-steps/proposal.md",
+        "size": 1745
+      },
+      "event_id": null,
+      "label": "proposal.md",
+      "node_id": "artifact:proposal",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "design",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/refactor-openspec-event-graph-to-session-steps/design.md",
+        "size": 2366
+      },
+      "event_id": null,
+      "label": "design.md",
+      "node_id": "artifact:design",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "tasks",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/refactor-openspec-event-graph-to-session-steps/tasks.md",
+        "size": 1689
+      },
+      "event_id": null,
+      "label": "tasks.md",
+      "node_id": "artifact:tasks",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "specs",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/refactor-openspec-event-graph-to-session-steps/specs/action-graph-diagnosis/spec.md",
+        "size": 3101
+      },
+      "event_id": null,
+      "label": "specs/action-graph-diagnosis/spec.md",
+      "node_id": "artifact:specs:1",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "artifact": "specs",
+        "path": "/Users/elon2ge/workspace/CCWhat/openspec/changes/refactor-openspec-event-graph-to-session-steps/specs/session-viewer/spec.md",
+        "size": 1006
+      },
+      "event_id": null,
+      "label": "specs/session-viewer/spec.md",
+      "node_id": "artifact:specs:2",
+      "timestamp": null,
+      "type": "artifact_present"
+    },
+    {
+      "agent_id": null,
+      "data": {
+        "success": true,
+        "timestamp": "2026-07-09T18:41:05.121744Z",
+        "type": "archive_ran"
+      },
+      "event_id": null,
+      "label": "archive_ran success=True",
+      "node_id": "event:1",
+      "timestamp": "2026-07-09T18:41:05.121744Z",
+      "type": "archive_ran"
+    }
+  ]
+}

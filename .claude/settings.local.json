@@ -2,13 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(git add *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(pip index *)",
+      "Bash(curl -s \"https://pypi.org/simple/claude-code-log/\")",
+      "Bash(git config *)",
+      "Bash(gh api *)"
     ]
   },
   "hooks": {
     "UserPromptSubmit": [
       {
-        "matcher": "ccwhat:(start|finish|abort|status|note)|ccwhat-(start|finish|abort|status|note)",
+        "matcher": "ccwhat:(start|finish|abort|status)|ccwhat-(start|finish|abort|status)",
         "hooks": [
           {
             "type": "command",

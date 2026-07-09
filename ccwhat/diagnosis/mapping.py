@@ -119,7 +119,7 @@ def _classify_event(event: dict[str, Any], change_files: list[str]) -> tuple[str
         if action:
             return action, f"path:{file_path}", "high"
 
-    command = str(event.get("command") or event.get("text") or "").lower()
+    command = str(event.get("command") or "").lower()
     if "openspec validate" in command or "opsx:verify" in command or "opsx-verify" in command:
         return "verify", "command:openspec_validate", "high"
     if "openspec archive" in command or "opsx:archive" in command or "opsx-archive" in command:

@@ -100,11 +100,12 @@ class DiagnosisGraphTests(unittest.TestCase):
     def test_event_graph_builds_core_nodes_and_edges(self) -> None:
         trace = {
             "events": [
-                {"event_id": "e1", "event_type": "tool_call", "tool_name": "Read", "files": ["a.py"], "turn_index": 1},
-                {"event_id": "e2", "event_type": "tool_call", "tool_name": "Edit", "files": ["a.py"], "turn_index": 1},
-                {"event_id": "e3", "event_type": "tool_call", "tool_name": "Bash", "command": "pytest", "turn_index": 1},
-                {"event_id": "e4", "event_type": "error", "text": "FAILED test", "turn_index": 1},
-                {"event_id": "e5", "event_type": "final_claim", "text": "complete", "turn_index": 1},
+                {"event_id": "e1", "event_type": "tool_call", "tool_name": "Read", "tool_use_id": "t1", "files": ["a.py"], "turn_index": 1},
+                {"event_id": "e2", "event_type": "tool_result", "tool_use_id": "t1", "text": "contents", "turn_index": 1},
+                {"event_id": "e3", "event_type": "tool_call", "tool_name": "Edit", "files": ["a.py"], "turn_index": 1},
+                {"event_id": "e4", "event_type": "tool_call", "tool_name": "Bash", "command": "pytest", "turn_index": 1},
+                {"event_id": "e5", "event_type": "error", "text": "FAILED test", "turn_index": 1},
+                {"event_id": "e6", "event_type": "final_claim", "text": "complete", "turn_index": 1},
             ]
         }
         graph = build_event_graph(trace).to_dict()
@@ -116,10 +117,12 @@ class DiagnosisGraphTests(unittest.TestCase):
         self.assertIn("command", node_types)
         self.assertIn("error", node_types)
         self.assertIn("final_claim", node_types)
-        self.assertIn("reads_before_edit", edge_types)
-        self.assertIn("edit_before_command", edge_types)
-        self.assertIn("command_produces_error", edge_types)
-        self.assertIn("claim_after_action", edge_types)
+        self.assertIn("timeline", edge_types)
+        self.assertIn("tool_result_of", edge_types)
+        self.assertNotIn("reads_before_edit", edge_types)
+        self.assertNotIn("edit_before_command", edge_types)
+        self.assertNotIn("command_produces_error", edge_types)
+        self.assertNotIn("claim_after_action", edge_types)
 
     def test_action_template_and_mapping(self) -> None:
         action_graph = build_openspec_action_graph()
@@ -134,6 +137,19 @@ class DiagnosisGraphTests(unittest.TestCase):
         self.assertEqual(actions["design"].event_ids, ["main:4"])
         self.assertEqual(actions["tasks"].event_ids, ["main:5"])
         self.assertEqual(actions["apply"].event_ids, ["main:6"])
+
+    def test_final_claim_text_does_not_map_as_verify_command(self) -> None:
+        action_graph = build_openspec_action_graph()
+        events = [
+            _event("main:1", "command", command="openspec validate demo --strict", tool_name="Bash", turn_index=1),
+            _event("main:2", "assistant_text", "OpenSpec validate 通过，已完成。", turn_index=2),
+        ]
+        trace = {"events": [event.__dict__ for event in events]}
+
+        map_events_to_actions(action_graph, trace)
+        actions = {action.type: action for action in action_graph.actions}
+
+        self.assertEqual(actions["verify"].event_ids, ["main:1"])
 
     def test_symptoms_for_missing_verify_and_unsupported_claim(self) -> None:
         trace = {"events": [event.__dict__ for event in _openspec_events()], "final_claim": "Implementation complete.", "changes": []}

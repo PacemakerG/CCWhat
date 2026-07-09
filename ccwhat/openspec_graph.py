@@ -443,7 +443,7 @@ def _build_milestone_event_graph(change_root: Path, events: list[dict[str, Any]]
             )
         )
     edges = [
-        GraphEdge(edge_id=f"OE{index:03d}", from_id=nodes[index - 1].node_id, to_id=nodes[index].node_id, type="temporal")
+        GraphEdge(edge_id=f"OE{index:03d}", from_id=nodes[index - 1].node_id, to_id=nodes[index].node_id, type="timeline")
         for index in range(1, len(nodes))
     ]
     return EventGraph(nodes=nodes, edges=edges)
