@@ -26,6 +26,64 @@ def _make_change(root: Path, name: str = "demo-change") -> Path:
     return change
 
 
+def _write_session(projects_dir: Path, session_id: str = "session-step-001") -> None:
+    project = projects_dir / "demo-project"
+    project.mkdir(parents=True)
+    rows = [
+        {
+            "type": "user",
+            "timestamp": "2026-07-09T00:00:01Z",
+            "message": {"content": [{"type": "text", "text": "Implement OpenSpec graph."}]},
+        },
+        {
+            "type": "assistant",
+            "timestamp": "2026-07-09T00:00:02Z",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_proposal",
+                        "name": "Write",
+                        "input": {"file_path": "openspec/changes/demo-change/proposal.md", "content": "proposal"},
+                    }
+                ]
+            },
+        },
+        {
+            "type": "assistant",
+            "timestamp": "2026-07-09T00:00:03Z",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_apply",
+                        "name": "Edit",
+                        "input": {"file_path": "ccwhat/foo.py", "old_string": "old", "new_string": "new"},
+                    }
+                ]
+            },
+        },
+        {
+            "type": "assistant",
+            "timestamp": "2026-07-09T00:00:04Z",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_verify",
+                        "name": "Bash",
+                        "input": {"command": "openspec validate demo-change --strict"},
+                    }
+                ]
+            },
+        },
+    ]
+    (project / f"{session_id}.jsonl").write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+
 class OpenSpecGraphSyncTests(unittest.TestCase):
     def test_sync_generates_graph_files_inside_change(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -47,8 +105,36 @@ class OpenSpecGraphSyncTests(unittest.TestCase):
 
             action_graph = json.loads((change / "graph" / "action_graph.json").read_text(encoding="utf-8"))
             actions = {action["type"]: action for action in action_graph["actions"]}
+            event_graph = json.loads((change / "graph" / "event_graph.json").read_text(encoding="utf-8"))
+            self.assertEqual(event_graph["metadata"]["source_kind"], "milestone_fallback")
             self.assertEqual(actions["proposal"]["status"], "observed")
             self.assertEqual(actions["specs"]["status"], "observed")
+            self.assertEqual(actions["apply"]["status"], "observed")
+            self.assertEqual(actions["verify"]["status"], "observed")
+
+    def test_sync_uses_session_step_events_when_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = _make_change(root)
+            projects_dir = root / "projects"
+            _write_session(projects_dir)
+
+            sync_openspec_graph(
+                change="demo-change",
+                session_id="session-step-001",
+                projects_dir=projects_dir,
+                cwd=root,
+            )
+
+            event_graph = json.loads((change / "graph" / "event_graph.json").read_text(encoding="utf-8"))
+            action_graph = json.loads((change / "graph" / "action_graph.json").read_text(encoding="utf-8"))
+            node_types = {node["type"] for node in event_graph["nodes"]}
+            actions = {action["type"]: action for action in action_graph["actions"]}
+
+            self.assertEqual(event_graph["metadata"]["source_kind"], "session_full")
+            self.assertIn("file_edit", node_types)
+            self.assertIn("command", node_types)
+            self.assertEqual(actions["proposal"]["status"], "observed")
             self.assertEqual(actions["apply"]["status"], "observed")
             self.assertEqual(actions["verify"]["status"], "observed")
 

@@ -19,6 +19,10 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertIn("/api/openspec-graph/", html)
         self.assertIn("renderPointLineGraph(t('action_graph')", html)
         self.assertIn("renderPointLineGraph(t('event_graph')", html)
+        self.assertIn("source_kind", html)
+        self.assertIn("milestone_fallback", html)
+        self.assertIn("不是 session step 级细图", html)
+        self.assertIn("function highlightOpenSpecGraphEvents", html)
 
 
 if __name__ == "__main__":
