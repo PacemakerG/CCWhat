@@ -35,6 +35,12 @@ def _port_in_use(port: int) -> bool:
     help="Path to the agent's projects directory. Overrides the agent default.",
 )
 @click.option(
+    "--analyzer-agent",
+    default=None,
+    type=str,
+    help="Local AI CLI used for one-shot analysis (claude, codex, opencode). Defaults to --agent.",
+)
+@click.option(
     "--req-resp-dir",
     default=str(DEFAULT_RAW_LOG_DIR),
     show_default=True,
@@ -53,6 +59,7 @@ def web_server(
     port: int,
     agent: str,
     projects_dir: Path | None,
+    analyzer_agent: str | None,
     req_resp_dir: Path,
     config_path: Path,
 ) -> None:
@@ -87,7 +94,14 @@ def web_server(
     adapter = create_adapter(agent, projects_dir)
     resolved_projects_dir = projects_dir if projects_dir is not None else adapter.default_projects_dir()
 
-    run_server(port, resolved_projects_dir, req_resp_dir, config_path=config_path, adapter=adapter)
+    run_server(
+        port,
+        resolved_projects_dir,
+        req_resp_dir,
+        config_path=config_path,
+        analyzer_agent=analyzer_agent,
+        adapter=adapter,
+    )
 
 
 # Keep old alias for backwards compatibility

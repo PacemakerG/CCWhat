@@ -1,0 +1,926 @@
+{
+  "edges": [
+    {
+      "confidence": 1.0,
+      "edge_id": "E0001",
+      "evidence": [],
+      "from": "main:1",
+      "required": false,
+      "to": "main:2",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0002",
+      "evidence": [],
+      "from": "main:2",
+      "required": false,
+      "to": "main:3",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0003",
+      "evidence": [],
+      "from": "main:3",
+      "required": false,
+      "to": "main:4",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0004",
+      "evidence": [],
+      "from": "main:4",
+      "required": false,
+      "to": "main:5",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0005",
+      "evidence": [],
+      "from": "main:5",
+      "required": false,
+      "to": "main:6",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0006",
+      "evidence": [],
+      "from": "main:6",
+      "required": false,
+      "to": "main:7",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0007",
+      "evidence": [],
+      "from": "main:7",
+      "required": false,
+      "to": "main:8",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0008",
+      "evidence": [],
+      "from": "main:8",
+      "required": false,
+      "to": "main:9",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0009",
+      "evidence": [],
+      "from": "main:9",
+      "required": false,
+      "to": "main:10:1",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0010",
+      "evidence": [],
+      "from": "main:10:1",
+      "required": false,
+      "to": "main:10:2",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0011",
+      "evidence": [],
+      "from": "main:10:2",
+      "required": false,
+      "to": "main:11:1",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0012",
+      "evidence": [],
+      "from": "main:11:1",
+      "required": false,
+      "to": "main:11:2",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0013",
+      "evidence": [],
+      "from": "main:11:2",
+      "required": false,
+      "to": "main:12",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0014",
+      "evidence": [],
+      "from": "main:12",
+      "required": false,
+      "to": "main:13",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0015",
+      "evidence": [],
+      "from": "main:13",
+      "required": false,
+      "to": "main:14",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0016",
+      "evidence": [],
+      "from": "main:14",
+      "required": false,
+      "to": "main:15",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0017",
+      "evidence": [],
+      "from": "main:15",
+      "required": false,
+      "to": "main:16",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0018",
+      "evidence": [],
+      "from": "main:16",
+      "required": false,
+      "to": "main:17",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0019",
+      "evidence": [],
+      "from": "main:17",
+      "required": false,
+      "to": "main:18",
+      "type": "timeline"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0020",
+      "evidence": [
+        "tool_use_id=toolu_proposal"
+      ],
+      "from": "main:2",
+      "required": false,
+      "to": "main:3",
+      "type": "tool_result_of"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0021",
+      "evidence": [
+        "tool_use_id=toolu_design"
+      ],
+      "from": "main:4",
+      "required": false,
+      "to": "main:5",
+      "type": "tool_result_of"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0022",
+      "evidence": [
+        "tool_use_id=toolu_spec"
+      ],
+      "from": "main:6",
+      "required": false,
+      "to": "main:7",
+      "type": "tool_result_of"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0023",
+      "evidence": [
+        "tool_use_id=toolu_tasks"
+      ],
+      "from": "main:8",
+      "required": false,
+      "to": "main:9",
+      "type": "tool_result_of"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0024",
+      "evidence": [
+        "tool_use_id=toolu_read_viewer"
+      ],
+      "from": "main:10:1",
+      "required": false,
+      "to": "main:11:1",
+      "type": "tool_result_of"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0025",
+      "evidence": [
+        "tool_use_id=toolu_edit_viewer"
+      ],
+      "from": "main:10:2",
+      "required": false,
+      "to": "main:11:2",
+      "type": "tool_result_of"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0026",
+      "evidence": [
+        "tool_use_id=toolu_edit_server"
+      ],
+      "from": "main:12",
+      "required": false,
+      "to": "main:13",
+      "type": "tool_result_of"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0027",
+      "evidence": [
+        "tool_use_id=toolu_validate"
+      ],
+      "from": "main:14",
+      "required": false,
+      "to": "main:15",
+      "type": "tool_result_of"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "E0028",
+      "evidence": [
+        "tool_use_id=toolu_test"
+      ],
+      "from": "main:16",
+      "required": false,
+      "to": "main:17",
+      "type": "tool_result_of"
+    }
+  ],
+  "metadata": {
+    "change": "add-symptom-routed-graph-attribution",
+    "dataset_id": null,
+    "milestone_event_count": 0,
+    "milestones": [],
+    "session_id": "22222222-3333-4444-8555-666666666666",
+    "source_confidence": "low",
+    "source_kind": "session_full",
+    "task_id": null
+  },
+  "nodes": [
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 1,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": null,
+        "source": "main",
+        "source_event_id": "main:1",
+        "text": "使用 OpenSpec 实现用户反馈归因诊断：在 Diagnostics 页面输入问题，生成报告，并能点击可疑 Action/Event 定位双图节点。",
+        "tool_call_id": null,
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": null,
+        "turn_index": 1
+      },
+      "event_id": "main:1",
+      "label": "使用 OpenSpec 实现用户反馈归因诊断：在 Diagnostics 页面输入问题，生成报告，并能点击可疑 Action/Event 定位双图节点。",
+      "node_id": "main:1",
+      "timestamp": "2026-07-10T10:00:00Z",
+      "type": "user_message"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [
+          "openspec/changes/add-symptom-routed-graph-attribution/proposal.md"
+        ],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 2,
+          "block_index": 0,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "content": "## Why\n\n用户需要从自然语言反馈定位 OpenSpec Action 和具体 Event。\n",
+            "file_path": "openspec/changes/add-symptom-routed-graph-attribution/proposal.md"
+          }
+        },
+        "result_summary": "Wrote proposal.md",
+        "source": "main",
+        "source_event_id": "main:2",
+        "text": "[tool_use: Write]",
+        "tool_call_id": "toolu_proposal",
+        "tool_input": {
+          "content": "## Why\n\n用户需要从自然语言反馈定位 OpenSpec Action 和具体 Event。\n",
+          "file_path": "openspec/changes/add-symptom-routed-graph-attribution/proposal.md"
+        },
+        "tool_name": "Write",
+        "tool_use_id": "toolu_proposal",
+        "turn_index": 1
+      },
+      "event_id": "main:2",
+      "label": "openspec/changes/add-symptom-routed-graph-attribution/proposal.md",
+      "node_id": "main:2",
+      "timestamp": "2026-07-10T10:00:05Z",
+      "type": "file_edit"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 3,
+          "block_index": 0,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "Wrote proposal.md",
+        "source": "main",
+        "source_event_id": "main:3",
+        "text": "Wrote proposal.md",
+        "tool_call_id": "toolu_proposal",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_proposal",
+        "turn_index": 2
+      },
+      "event_id": "main:3",
+      "label": "Wrote proposal.md",
+      "node_id": "main:3",
+      "timestamp": "2026-07-10T10:00:06Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [
+          "openspec/changes/add-symptom-routed-graph-attribution/design.md"
+        ],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 4,
+          "block_index": 0,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "content": "## Decision\n\n复用本地 Analyzer，报告引用真实 Action/Event ID。\n",
+            "file_path": "openspec/changes/add-symptom-routed-graph-attribution/design.md"
+          }
+        },
+        "result_summary": "Wrote design.md",
+        "source": "main",
+        "source_event_id": "main:4",
+        "text": "[tool_use: Write]",
+        "tool_call_id": "toolu_design",
+        "tool_input": {
+          "content": "## Decision\n\n复用本地 Analyzer，报告引用真实 Action/Event ID。\n",
+          "file_path": "openspec/changes/add-symptom-routed-graph-attribution/design.md"
+        },
+        "tool_name": "Write",
+        "tool_use_id": "toolu_design",
+        "turn_index": 2
+      },
+      "event_id": "main:4",
+      "label": "openspec/changes/add-symptom-routed-graph-attribution/design.md",
+      "node_id": "main:4",
+      "timestamp": "2026-07-10T10:00:10Z",
+      "type": "file_edit"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 5,
+          "block_index": 0,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "Wrote design.md",
+        "source": "main",
+        "source_event_id": "main:5",
+        "text": "Wrote design.md",
+        "tool_call_id": "toolu_design",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_design",
+        "turn_index": 3
+      },
+      "event_id": "main:5",
+      "label": "Wrote design.md",
+      "node_id": "main:5",
+      "timestamp": "2026-07-10T10:00:11Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [
+          "openspec/changes/add-symptom-routed-graph-attribution/specs/action-graph-diagnosis/spec.md"
+        ],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 6,
+          "block_index": 0,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "content": "## ADDED Requirements\n\n### Requirement: Viewer feedback diagnosis\n\n报告中的 Event 必须能高亮细图节点。\n",
+            "file_path": "openspec/changes/add-symptom-routed-graph-attribution/specs/action-graph-diagnosis/spec.md"
+          }
+        },
+        "result_summary": "Wrote spec.md",
+        "source": "main",
+        "source_event_id": "main:6",
+        "text": "[tool_use: Write]",
+        "tool_call_id": "toolu_spec",
+        "tool_input": {
+          "content": "## ADDED Requirements\n\n### Requirement: Viewer feedback diagnosis\n\n报告中的 Event 必须能高亮细图节点。\n",
+          "file_path": "openspec/changes/add-symptom-routed-graph-attribution/specs/action-graph-diagnosis/spec.md"
+        },
+        "tool_name": "Write",
+        "tool_use_id": "toolu_spec",
+        "turn_index": 3
+      },
+      "event_id": "main:6",
+      "label": "openspec/changes/add-symptom-routed-graph-attribution/specs/action-graph-diagnosis/spec.md",
+      "node_id": "main:6",
+      "timestamp": "2026-07-10T10:00:15Z",
+      "type": "file_edit"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 7,
+          "block_index": 0,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "Wrote spec.md",
+        "source": "main",
+        "source_event_id": "main:7",
+        "text": "Wrote spec.md",
+        "tool_call_id": "toolu_spec",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_spec",
+        "turn_index": 4
+      },
+      "event_id": "main:7",
+      "label": "Wrote spec.md",
+      "node_id": "main:7",
+      "timestamp": "2026-07-10T10:00:16Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [
+          "openspec/changes/add-symptom-routed-graph-attribution/tasks.md"
+        ],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 8,
+          "block_index": 0,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "content": "## Tasks\n\n- [x] Add feedback input\n- [x] Render report\n- [x] Link report Event to graph node\n",
+            "file_path": "openspec/changes/add-symptom-routed-graph-attribution/tasks.md"
+          }
+        },
+        "result_summary": "Wrote tasks.md",
+        "source": "main",
+        "source_event_id": "main:8",
+        "text": "[tool_use: Write]",
+        "tool_call_id": "toolu_tasks",
+        "tool_input": {
+          "content": "## Tasks\n\n- [x] Add feedback input\n- [x] Render report\n- [x] Link report Event to graph node\n",
+          "file_path": "openspec/changes/add-symptom-routed-graph-attribution/tasks.md"
+        },
+        "tool_name": "Write",
+        "tool_use_id": "toolu_tasks",
+        "turn_index": 4
+      },
+      "event_id": "main:8",
+      "label": "openspec/changes/add-symptom-routed-graph-attribution/tasks.md",
+      "node_id": "main:8",
+      "timestamp": "2026-07-10T10:00:20Z",
+      "type": "file_edit"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 9,
+          "block_index": 0,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "Wrote tasks.md",
+        "source": "main",
+        "source_event_id": "main:9",
+        "text": "Wrote tasks.md",
+        "tool_call_id": "toolu_tasks",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_tasks",
+        "turn_index": 5
+      },
+      "event_id": "main:9",
+      "label": "Wrote tasks.md",
+      "node_id": "main:9",
+      "timestamp": "2026-07-10T10:00:21Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [
+          "viewer/claude-log.html"
+        ],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 10,
+          "block_index": 0,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "file_path": "viewer/claude-log.html"
+          }
+        },
+        "result_summary": "function highlightOpenSpecGraphNode(...) queries #openspecGraphContent .ops-graph-node",
+        "source": "main",
+        "source_event_id": "main:10:1",
+        "text": "[tool_use: Read]\n[tool_use: Edit]",
+        "tool_call_id": "toolu_read_viewer",
+        "tool_input": {
+          "file_path": "viewer/claude-log.html"
+        },
+        "tool_name": "Read",
+        "tool_use_id": "toolu_read_viewer",
+        "turn_index": 5
+      },
+      "event_id": "main:10:1",
+      "label": "viewer/claude-log.html",
+      "node_id": "main:10:1",
+      "timestamp": "2026-07-10T10:00:30Z",
+      "type": "file_read"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [
+          "viewer/claude-log.html"
+        ],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 10,
+          "block_index": 1,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "file_path": "viewer/claude-log.html",
+            "new_string": "document.querySelectorAll('#openspecGraphDiagnosisReport .ops-graph-node')",
+            "old_string": "document.querySelectorAll('#openspecGraphContent .ops-graph-node')"
+          }
+        },
+        "result_summary": "Updated viewer/claude-log.html",
+        "source": "main",
+        "source_event_id": "main:10:2",
+        "text": "[tool_use: Read]\n[tool_use: Edit]",
+        "tool_call_id": "toolu_edit_viewer",
+        "tool_input": {
+          "file_path": "viewer/claude-log.html",
+          "new_string": "document.querySelectorAll('#openspecGraphDiagnosisReport .ops-graph-node')",
+          "old_string": "document.querySelectorAll('#openspecGraphContent .ops-graph-node')"
+        },
+        "tool_name": "Edit",
+        "tool_use_id": "toolu_edit_viewer",
+        "turn_index": 5
+      },
+      "event_id": "main:10:2",
+      "label": "viewer/claude-log.html",
+      "node_id": "main:10:2",
+      "timestamp": "2026-07-10T10:00:30Z",
+      "type": "file_edit"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 11,
+          "block_index": 0,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "function highlightOpenSpecGraphNode(...) queries #openspecGraphContent .ops-graph-node",
+        "source": "main",
+        "source_event_id": "main:11:1",
+        "text": "function highlightOpenSpecGraphNode(...) queries #openspecGraphContent .ops-graph-node",
+        "tool_call_id": "toolu_read_viewer",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_read_viewer",
+        "turn_index": 6
+      },
+      "event_id": "main:11:1",
+      "label": "function highlightOpenSpecGraphNode(...) queries #openspecGraphContent .ops-graph-node",
+      "node_id": "main:11:1",
+      "timestamp": "2026-07-10T10:00:31Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 11,
+          "block_index": 1,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "Updated viewer/claude-log.html",
+        "source": "main",
+        "source_event_id": "main:11:2",
+        "text": "Updated viewer/claude-log.html",
+        "tool_call_id": "toolu_edit_viewer",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_edit_viewer",
+        "turn_index": 6
+      },
+      "event_id": "main:11:2",
+      "label": "Updated viewer/claude-log.html",
+      "node_id": "main:11:2",
+      "timestamp": "2026-07-10T10:00:31Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [
+          "viewer/server.py"
+        ],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 12,
+          "block_index": 0,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "file_path": "viewer/server.py",
+            "new_string": "return diagnosis payload",
+            "old_string": "return 404"
+          }
+        },
+        "result_summary": "Updated viewer/server.py",
+        "source": "main",
+        "source_event_id": "main:12",
+        "text": "[tool_use: Edit]",
+        "tool_call_id": "toolu_edit_server",
+        "tool_input": {
+          "file_path": "viewer/server.py",
+          "new_string": "return diagnosis payload",
+          "old_string": "return 404"
+        },
+        "tool_name": "Edit",
+        "tool_use_id": "toolu_edit_server",
+        "turn_index": 6
+      },
+      "event_id": "main:12",
+      "label": "viewer/server.py",
+      "node_id": "main:12",
+      "timestamp": "2026-07-10T10:00:40Z",
+      "type": "file_edit"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 13,
+          "block_index": 0,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "Updated viewer/server.py",
+        "source": "main",
+        "source_event_id": "main:13",
+        "text": "Updated viewer/server.py",
+        "tool_call_id": "toolu_edit_server",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_edit_server",
+        "turn_index": 7
+      },
+      "event_id": "main:13",
+      "label": "Updated viewer/server.py",
+      "node_id": "main:13",
+      "timestamp": "2026-07-10T10:00:41Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": "openspec validate add-symptom-routed-graph-attribution --strict",
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 14,
+          "block_index": 0,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "command": "openspec validate add-symptom-routed-graph-attribution --strict"
+          }
+        },
+        "result_summary": "Change 'add-symptom-routed-graph-attribution' is valid",
+        "source": "main",
+        "source_event_id": "main:14",
+        "text": "[tool_use: Bash]",
+        "tool_call_id": "toolu_validate",
+        "tool_input": {
+          "command": "openspec validate add-symptom-routed-graph-attribution --strict"
+        },
+        "tool_name": "Bash",
+        "tool_use_id": "toolu_validate",
+        "turn_index": 7
+      },
+      "event_id": "main:14",
+      "label": "openspec validate add-symptom-routed-graph-attribution --strict",
+      "node_id": "main:14",
+      "timestamp": "2026-07-10T10:00:50Z",
+      "type": "command"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 15,
+          "block_index": 0,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "Change 'add-symptom-routed-graph-attribution' is valid",
+        "source": "main",
+        "source_event_id": "main:15",
+        "text": "Change 'add-symptom-routed-graph-attribution' is valid",
+        "tool_call_id": "toolu_validate",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_validate",
+        "turn_index": 8
+      },
+      "event_id": "main:15",
+      "label": "Change 'add-symptom-routed-graph-attribution' is valid",
+      "node_id": "main:15",
+      "timestamp": "2026-07-10T10:00:51Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": "uv run pytest -q tests/test_openspec_graph_viewer.py",
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 16,
+          "block_index": 0,
+          "block_type": "tool_use",
+          "session_id": "22222222-3333-4444-8555-666666666666",
+          "tool_input": {
+            "command": "uv run pytest -q tests/test_openspec_graph_viewer.py"
+          }
+        },
+        "result_summary": "1 passed in 0.05s",
+        "source": "main",
+        "source_event_id": "main:16",
+        "text": "[tool_use: Bash]",
+        "tool_call_id": "toolu_test",
+        "tool_input": {
+          "command": "uv run pytest -q tests/test_openspec_graph_viewer.py"
+        },
+        "tool_name": "Bash",
+        "tool_use_id": "toolu_test",
+        "turn_index": 8
+      },
+      "event_id": "main:16",
+      "label": "uv run pytest -q tests/test_openspec_graph_viewer.py",
+      "node_id": "main:16",
+      "timestamp": "2026-07-10T10:00:55Z",
+      "type": "command"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 17,
+          "block_index": 0,
+          "block_type": "tool_result",
+          "is_error": false,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": "1 passed in 0.05s",
+        "source": "main",
+        "source_event_id": "main:17",
+        "text": "1 passed in 0.05s",
+        "tool_call_id": "toolu_test",
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": "toolu_test",
+        "turn_index": 9
+      },
+      "event_id": "main:17",
+      "label": "1 passed in 0.05s",
+      "node_id": "main:17",
+      "timestamp": "2026-07-10T10:00:56Z",
+      "type": "tool_result"
+    },
+    {
+      "agent_id": "main",
+      "data": {
+        "command": null,
+        "files": [],
+        "is_error": false,
+        "raw_ref": {
+          "_fileLine": 18,
+          "session_id": "22222222-3333-4444-8555-666666666666"
+        },
+        "result_summary": null,
+        "source": "main",
+        "source_event_id": "main:18",
+        "text": "已完成用户反馈归因诊断。OpenSpec 校验和 Viewer 静态测试均通过，报告中的 Action/Event 已支持点击定位。",
+        "tool_call_id": null,
+        "tool_input": null,
+        "tool_name": null,
+        "tool_use_id": null,
+        "turn_index": 9
+      },
+      "event_id": "main:18",
+      "label": "已完成用户反馈归因诊断。OpenSpec 校验和 Viewer 静态测试均通过，报告中的 Action/Event 已支持点击定位。",
+      "node_id": "main:18",
+      "timestamp": "2026-07-10T10:01:00Z",
+      "type": "final_claim"
+    }
+  ]
+}

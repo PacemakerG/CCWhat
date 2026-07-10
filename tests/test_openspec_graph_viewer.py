@@ -23,6 +23,12 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertIn("milestone_fallback", html)
         self.assertIn("不是 session step 级细图", html)
         self.assertIn("function highlightOpenSpecGraphEvents", html)
+        self.assertIn('id="openspecGraphFeedbackInput"', html)
+        self.assertIn('id="openspecGraphDiagnoseBtn"', html)
+        self.assertIn("function diagnoseOpenSpecGraph()", html)
+        self.assertIn("/api/openspec-graph-diagnose", html)
+        self.assertIn("function renderOpenSpecFeedbackDiagnosis", html)
+        self.assertIn("function highlightOpenSpecGraphNode", html)
 
 
 if __name__ == "__main__":

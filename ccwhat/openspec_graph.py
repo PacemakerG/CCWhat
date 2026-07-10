@@ -186,8 +186,6 @@ def _session_graph_payloads(
     event_graph = build_event_graph(trace)
     action_graph = build_openspec_action_graph()
     map_events_to_actions(action_graph, trace)
-    symptoms = detect_symptoms(action_graph, trace)
-    causal_chains = attribute_symptoms(action_graph, symptoms)
     metadata = _source_metadata(
         change=change,
         source_kind=source_kind,
@@ -200,9 +198,10 @@ def _session_graph_payloads(
     diagnosis = {
         "task_id": task_id or session_id,
         "workflow": "openspec",
-        "summary": _summary(symptoms, causal_chains),
-        "symptoms": [symptom.to_dict() for symptom in symptoms],
-        "causal_chains": [chain.to_dict() for chain in causal_chains],
+        "status": "awaiting_feedback",
+        "summary": "Session graph is ready for user feedback diagnosis.",
+        "symptoms": [],
+        "causal_chains": [],
         "missing_evidence": missing_evidence,
     }
     return (

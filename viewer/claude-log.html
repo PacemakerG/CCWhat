@@ -1633,6 +1633,16 @@ body {
   .ops-graph-edge-label { font-family: var(--font-mono); font-size: 8px; fill: var(--text-tertiary); }
   .ops-graph-node.is-clickable { cursor: pointer; }
   .ops-graph-node.highlight rect { stroke: var(--accent); stroke-width: 2.4px; }
+  .ops-feedback-panel { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .ops-feedback-label { font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+  .ops-feedback-input { width: 100%; min-height: 72px; resize: vertical; font-family: var(--font-sans); line-height: 1.5; }
+  .ops-feedback-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .ops-diagnosis-report { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .ops-diagnosis-card { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); padding: 10px 12px; }
+  .ops-diagnosis-title { font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+  .ops-diagnosis-row { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 12px; color: var(--text-secondary); }
+  .ops-diagnosis-row + .ops-diagnosis-row { border-top: 1px solid var(--border); }
+  .ops-diagnosis-link { flex-shrink: 0; font-family: var(--font-mono); }
 
   /* ── Task workbench dual-pane ── */
   .task-workbench { display: flex; flex: 1; overflow: hidden; height: 100%; }
@@ -2345,6 +2355,15 @@ pre, code, .code-block, .diff-schema-pre { font-family: var(--font-mono); }
                 <span class="ops-graph-status" id="openspecGraphStatus" data-i18n="openspec_graph_hint">读取 openspec/changes/&lt;change&gt;/graph</span>
               </div>
               <div id="openspecGraphContent"><div class="placeholder">输入 change name 后加载 Action Graph 和 Event Graph</div></div>
+              <div class="ops-feedback-panel">
+                <div class="ops-feedback-label" data-i18n="openspec_feedback_label">描述你发现的问题</div>
+                <textarea class="field ops-feedback-input" id="openspecGraphFeedbackInput" data-i18n-placeholder="openspec_feedback_placeholder" placeholder="例如：实现完成了，但是按钮点击后仍跳转到错误页面"></textarea>
+                <div class="ops-feedback-actions">
+                  <button class="btn" id="openspecGraphDiagnoseBtn" onclick="diagnoseOpenSpecGraph()" data-i18n="generate_diagnosis">生成诊断</button>
+                  <span class="ops-graph-status" id="openspecGraphDiagnosisStatus" data-i18n="openspec_feedback_hint">使用本地 Analyzer 启动一次非交互诊断</span>
+                </div>
+                <div id="openspecGraphDiagnosisReport"></div>
+              </div>
             </div>
           </div>
           <div id="diagContent"><div class="placeholder">选择一个 session 并加载 task 切分后查看诊断</div></div>
@@ -2589,6 +2608,8 @@ const CCWHAT_COPY = {
     openspec_graph: 'OpenSpec 图谱', load_graph: '加载图', openspec_change_placeholder: 'OpenSpec change 名称',
     openspec_graph_hint: '读取 openspec/changes/<change>/graph',
     action_graph: '粗图：Action Graph', event_graph: '细图：Event Graph',
+    openspec_feedback_label: '描述你发现的问题', openspec_feedback_placeholder: '例如：实现完成了，但是按钮点击后仍跳转到错误页面',
+    generate_diagnosis: '生成诊断', openspec_feedback_hint: '使用本地 Analyzer 启动一次非交互诊断',
     open_export_dialog: '打开导出弹窗', dataset_preview: '数据集预览', viewer: '查看器', theme: '主题',
     filter_user: '用户', filter_assistant: '助手', filter_system: '系统', filter_attachment: '附件',
     filter_permission: '权限', filter_file_snapshot: '文件快照', filter_queue: '队列', filter_other: '其他',
@@ -2629,6 +2650,8 @@ const CCWHAT_COPY = {
     openspec_graph: 'OpenSpec Graph', load_graph: 'Load graph', openspec_change_placeholder: 'OpenSpec change name',
     openspec_graph_hint: 'Reads openspec/changes/<change>/graph',
     action_graph: 'Coarse: Action Graph', event_graph: 'Fine: Event Graph',
+    openspec_feedback_label: 'Describe the problem you observed', openspec_feedback_placeholder: 'Example: implementation finished, but the button still navigates to the wrong page',
+    generate_diagnosis: 'Generate diagnosis', openspec_feedback_hint: 'Starts one non-interactive local Analyzer session',
     open_export_dialog: 'Open export dialog', dataset_preview: 'Dataset Preview', viewer: 'Viewer', theme: 'Theme',
     filter_user: 'User', filter_assistant: 'Assistant', filter_system: 'System', filter_attachment: 'Attachment',
     filter_permission: 'Permission', filter_file_snapshot: 'File snapshot', filter_queue: 'Queue', filter_other: 'Other',
@@ -6898,6 +6921,7 @@ function renderDiagnosticsPage() {
 function refreshDiagnostics() { renderDiagnosticsPage(); }
 
 const OPENSPEC_GRAPH_CHANGE_KEY = 'ccwhat-openspec-graph-change';
+let currentOpenSpecGraphPayload = null;
 
 function ensureOpenSpecGraphInputDefault() {
   const input = document.getElementById('openspecGraphChangeInput');
@@ -6935,12 +6959,99 @@ async function loadOpenSpecGraph() {
     const resp = await fetch(url);
     if (!resp.ok) throw await apiError(resp, url);
     const payload = await resp.json();
+    currentOpenSpecGraphPayload = payload;
     contentEl.innerHTML = renderOpenSpecGraph(payload);
+    const reportEl = document.getElementById('openspecGraphDiagnosisReport');
+    if (reportEl) reportEl.innerHTML = '';
     if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? `已加载 ${change}` : `Loaded ${change}`;
   } catch (e) {
     contentEl.innerHTML = `<div class="placeholder" style="color:var(--danger)">加载失败: ${esc(e.message || e)}</div>`;
     if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? '加载失败' : 'Load failed';
   }
+}
+
+async function diagnoseOpenSpecGraph() {
+  const change = (document.getElementById('openspecGraphChangeInput')?.value || '').trim();
+  const feedback = (document.getElementById('openspecGraphFeedbackInput')?.value || '').trim();
+  const statusEl = document.getElementById('openspecGraphDiagnosisStatus');
+  const reportEl = document.getElementById('openspecGraphDiagnosisReport');
+  const button = document.getElementById('openspecGraphDiagnoseBtn');
+  const boundSession = currentOpenSpecGraphPayload?.eventGraph?.metadata?.session_id || '';
+  const selectedSession = document.getElementById('sessionSel')?.value || '';
+  const sessionId = selectedSession || boundSession;
+  if (!change || !currentOpenSpecGraphPayload) {
+    if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? '请先加载 OpenSpec 图谱' : 'Load the OpenSpec graph first';
+    return;
+  }
+  if (!sessionId) {
+    if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? '图谱没有绑定 Session' : 'The graph is not bound to a Session';
+    return;
+  }
+  if (!feedback) {
+    if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? '请输入问题反馈' : 'Enter feedback first';
+    return;
+  }
+
+  if (button) button.disabled = true;
+  if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? '正在启动本地 Analyzer 诊断…' : 'Starting local Analyzer diagnosis…';
+  if (reportEl) reportEl.innerHTML = '<div class="placeholder">Analyzing Action and Event evidence…</div>';
+  const url = `${apiBase()}/api/openspec-graph-diagnose`;
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ change, sessionId, feedback })
+    });
+    if (!resp.ok) throw await apiError(resp, url);
+    const payload = await resp.json();
+    if (reportEl) reportEl.innerHTML = renderOpenSpecFeedbackDiagnosis(payload?.diagnosis || {});
+    const available = Boolean(payload?.diagnosis?.available);
+    if (statusEl) statusEl.textContent = available
+      ? (ccwhatLocale === 'zh' ? `诊断完成 · ${payload.analyzerAgent || 'analyzer'}` : `Diagnosis complete · ${payload.analyzerAgent || 'analyzer'}`)
+      : (ccwhatLocale === 'zh' ? 'Analyzer 未能生成诊断' : 'Analyzer could not produce a diagnosis');
+  } catch (e) {
+    if (reportEl) reportEl.innerHTML = `<div class="ops-graph-warning">${esc(e.message || e)}</div>`;
+    if (statusEl) statusEl.textContent = ccwhatLocale === 'zh' ? '诊断失败' : 'Diagnosis failed';
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function renderOpenSpecFeedbackDiagnosis(diagnosis) {
+  if (!diagnosis?.available) {
+    const detail = (diagnosis?.missing_evidence || []).join('；') || diagnosis?.code || 'Analyzer unavailable';
+    return `<div class="ops-graph-warning">${esc(detail)}</div>`;
+  }
+  const symptoms = diagnosis.symptoms || [];
+  const actions = diagnosis.suspicious_actions || [];
+  const events = diagnosis.suspicious_events || [];
+  const missing = diagnosis.missing_evidence || [];
+  const symptomRows = symptoms.length
+    ? symptoms.map(item => `<div class="ops-diagnosis-row"><span class="ops-diagnosis-link">${esc(item.type || 'unknown')}</span><span>${esc(item.summary || '')}</span></div>`).join('')
+    : '<div class="placeholder">No classified symptom</div>';
+  const actionRows = actions.length
+    ? actions.map(item => {
+        const encoded = encodeURIComponent(String(item.action_id || ''));
+        return `<div class="ops-diagnosis-row"><button class="nav-btn ops-diagnosis-link" onclick="highlightOpenSpecGraphNode('${encoded}')">${esc(item.action_id)}</button><span>${esc(item.reason || '')}</span></div>`;
+      }).join('')
+    : '<div class="placeholder">No valid Action references</div>';
+  const eventRows = events.length
+    ? events.map(item => {
+        const encoded = encodeURIComponent(String(item.event_id || ''));
+        const action = item.action_id ? ` · ${esc(item.action_id)}` : '';
+        return `<div class="ops-diagnosis-row"><button class="nav-btn ops-diagnosis-link" onclick="highlightOpenSpecGraphNode('${encoded}')">${esc(item.event_id)}</button><span>${action}${action ? ' — ' : ''}${esc(item.reason || '')}</span></div>`;
+      }).join('')
+    : '<div class="placeholder">No valid Event references</div>';
+  const missingRows = missing.length
+    ? missing.map(item => `<div class="ops-diagnosis-row"><span>${esc(item)}</span></div>`).join('')
+    : '<div class="placeholder">No missing evidence reported</div>';
+  return `<div class="ops-diagnosis-report">
+    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Summary</div><div style="font-size:13px;line-height:1.55;color:var(--text-primary)">${esc(diagnosis.summary || '')}</div></div>
+    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Symptoms</div>${symptomRows}</div>
+    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Suspicious Actions</div>${actionRows}</div>
+    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Suspicious Events</div>${eventRows}</div>
+    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Missing Evidence</div>${missingRows}</div>
+  </div>`;
 }
 
 function renderOpenSpecGraph(payload) {
@@ -7102,6 +7213,17 @@ function highlightOpenSpecGraphEvents(encodedEventIds) {
     const nodeId = node.getAttribute('data-node-id');
     node.classList.toggle('highlight', idSet.has(String(nodeId)));
   });
+}
+
+function highlightOpenSpecGraphNode(encodedNodeId) {
+  const nodeId = decodeURIComponent(encodedNodeId || '');
+  let target = null;
+  document.querySelectorAll('#openspecGraphContent .ops-graph-node').forEach(node => {
+    const matches = String(node.getAttribute('data-node-id')) === String(nodeId);
+    node.classList.toggle('highlight', matches);
+    if (matches) target = node;
+  });
+  if (target?.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
 }
 
 function renderExportPage() {

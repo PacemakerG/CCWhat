@@ -1,0 +1,330 @@
+{
+  "actions": [
+    {
+      "action_id": "A1",
+      "event_ids": [
+        "main:2",
+        "main:3"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:2"
+          ],
+          "reason": "edited_path:openspec/changes/add-symptom-routed-graph-attribution/proposal.md",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:3"
+          ],
+          "reason": "tool_result_of:edited_path:openspec/changes/add-symptom-routed-graph-attribution/proposal.md",
+          "source": "event_mapping"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Proposal",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 0,
+      "type": "proposal"
+    },
+    {
+      "action_id": "A2",
+      "event_ids": [
+        "main:6",
+        "main:7"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:6"
+          ],
+          "reason": "edited_path:openspec/changes/add-symptom-routed-graph-attribution/specs/action-graph-diagnosis/spec.md",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:7"
+          ],
+          "reason": "tool_result_of:edited_path:openspec/changes/add-symptom-routed-graph-attribution/specs/action-graph-diagnosis/spec.md",
+          "source": "event_mapping"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Specs",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 0,
+      "type": "specs"
+    },
+    {
+      "action_id": "A3",
+      "event_ids": [
+        "main:4",
+        "main:5"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:4"
+          ],
+          "reason": "edited_path:openspec/changes/add-symptom-routed-graph-attribution/design.md",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:5"
+          ],
+          "reason": "tool_result_of:edited_path:openspec/changes/add-symptom-routed-graph-attribution/design.md",
+          "source": "event_mapping"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Design",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 0,
+      "type": "design"
+    },
+    {
+      "action_id": "A4",
+      "event_ids": [
+        "main:8",
+        "main:9"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:8"
+          ],
+          "reason": "edited_path:openspec/changes/add-symptom-routed-graph-attribution/tasks.md",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:9"
+          ],
+          "reason": "tool_result_of:edited_path:openspec/changes/add-symptom-routed-graph-attribution/tasks.md",
+          "source": "event_mapping"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Tasks",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 0,
+      "type": "tasks"
+    },
+    {
+      "action_id": "A5",
+      "event_ids": [
+        "main:10:2",
+        "main:11:2",
+        "main:12",
+        "main:13"
+      ],
+      "evidence": [
+        {
+          "confidence": "medium",
+          "event_ids": [
+            "main:10:2"
+          ],
+          "reason": "event:file_change",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "medium",
+          "event_ids": [
+            "main:11:2"
+          ],
+          "reason": "tool_result_of:event:file_change",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "medium",
+          "event_ids": [
+            "main:12"
+          ],
+          "reason": "event:file_change",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "medium",
+          "event_ids": [
+            "main:13"
+          ],
+          "reason": "tool_result_of:event:file_change",
+          "source": "event_mapping"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Apply",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 0,
+      "type": "apply"
+    },
+    {
+      "action_id": "A6",
+      "event_ids": [
+        "main:14",
+        "main:15",
+        "main:16",
+        "main:17"
+      ],
+      "evidence": [
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:14"
+          ],
+          "reason": "command:openspec_validate",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "high",
+          "event_ids": [
+            "main:15"
+          ],
+          "reason": "tool_result_of:command:openspec_validate",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "medium",
+          "event_ids": [
+            "main:16"
+          ],
+          "reason": "command:test",
+          "source": "event_mapping"
+        },
+        {
+          "confidence": "medium",
+          "event_ids": [
+            "main:17"
+          ],
+          "reason": "tool_result_of:command:test",
+          "source": "event_mapping"
+        }
+      ],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Verify",
+      "required": true,
+      "status": "observed",
+      "suspicion_score": 0,
+      "type": "verify"
+    },
+    {
+      "action_id": "A7",
+      "event_ids": [],
+      "evidence": [],
+      "expected_because": [
+        "openspec_workflow_template"
+      ],
+      "label": "Archive",
+      "required": true,
+      "status": "not_observed",
+      "suspicion_score": 0,
+      "type": "archive"
+    }
+  ],
+  "edges": [
+    {
+      "confidence": 1.0,
+      "edge_id": "AE001",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A1",
+      "required": true,
+      "to": "A2",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE002",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A2",
+      "required": true,
+      "to": "A3",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE003",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A3",
+      "required": true,
+      "to": "A4",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE004",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A4",
+      "required": true,
+      "to": "A5",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE005",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A5",
+      "required": true,
+      "to": "A6",
+      "type": "workflow_expected"
+    },
+    {
+      "confidence": 1.0,
+      "edge_id": "AE006",
+      "evidence": [
+        "openspec_workflow_template"
+      ],
+      "from": "A6",
+      "required": true,
+      "to": "A7",
+      "type": "workflow_expected"
+    }
+  ],
+  "metadata": {
+    "change": "add-symptom-routed-graph-attribution",
+    "dataset_id": null,
+    "milestone_event_count": 0,
+    "milestones": [],
+    "session_id": "22222222-3333-4444-8555-666666666666",
+    "source_confidence": "low",
+    "source_kind": "session_full",
+    "task_id": null
+  },
+  "workflow": "openspec"
+}

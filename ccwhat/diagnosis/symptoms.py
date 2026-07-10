@@ -14,7 +14,7 @@ def detect_symptoms(action_graph: ActionGraph, trace: dict[str, Any]) -> list[Sy
     actions = {action.action_id: action for action in action_graph.actions}
 
     for action in action_graph.actions:
-        if action.required and action.status in {"missing", "skipped"}:
+        if action.required and action.status in {"missing", "skipped", "not_observed"}:
             symptoms.append(
                 Symptom(
                     symptom_id=f"S{len(symptoms) + 1}",
@@ -57,7 +57,7 @@ def detect_symptoms(action_graph: ActionGraph, trace: dict[str, Any]) -> list[Sy
 
 
 def _bad_verify(verify: Any) -> bool:
-    return verify is None or verify.status in {"missing", "skipped", "failed"}
+    return verify is None or verify.status in {"missing", "skipped", "not_observed", "failed"}
 
 
 def _events_by_id(trace: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -120,13 +120,13 @@ def _add_workflow_skip_symptoms(action_graph: ActionGraph, symptoms: list[Sympto
                     evidence=[f"{previous_missing} was missing before observed {action.action_id}"],
                 )
             )
-        if action.status in {"missing", "skipped"}:
+        if action.status in {"missing", "skipped", "not_observed"}:
             previous_missing = action.action_id
 
 
 def _add_artifact_missing_symptoms(action_graph: ActionGraph, symptoms: list[Symptom]) -> None:
     for action in action_graph.actions[:4]:
-        if action.status in {"missing", "skipped"}:
+        if action.status in {"missing", "skipped", "not_observed"}:
             symptoms.append(
                 Symptom(
                     symptom_id=f"S{len(symptoms) + 1}",

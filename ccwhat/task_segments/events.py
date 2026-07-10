@@ -75,6 +75,11 @@ def _find_tool_result_blocks(content: Any) -> list[dict]:
     return [b for b in content if isinstance(b, dict) and b.get("type") == "tool_result"]
 
 
+def _block_event_id(base_id: str, index: int, total: int) -> str:
+    """Keep legacy ids for single blocks and suffix ids only when needed."""
+    return base_id if total <= 1 else f"{base_id}:{index + 1}"
+
+
 # ---------------------------------------------------------------------------
 # Task 2.1 – main session normalization
 # ---------------------------------------------------------------------------
@@ -98,7 +103,10 @@ def normalize_main_entries(
         if content is None:
             content = ""
         timestamp = entry.get("timestamp")
-        raw_ref: dict[str, Any] = {"_fileLine": entry.get("_fileLine")}
+        raw_ref: dict[str, Any] = {
+            "session_id": session_id,
+            "_fileLine": entry.get("_fileLine"),
+        }
 
         if etype == "user":
             turn_index += 1
@@ -110,6 +118,7 @@ def normalize_main_entries(
                 if tuid and tuid in tool_uses:
                     result_text = _extract_text(tr_block.get("content", ""))
                     tool_uses[tuid].metadata["result_text"] = result_text
+                    tool_uses[tuid].metadata["result_is_error"] = bool(tr_block.get("is_error"))
 
             # If the user message is *only* tool_result blocks, emit tool_result events
             non_tr_blocks = [
@@ -117,11 +126,17 @@ def normalize_main_entries(
                 if not (isinstance(b, dict) and b.get("type") == "tool_result")
             ]
             if tool_result_blocks and not non_tr_blocks and not isinstance(content, str):
-                for tr_block in tool_result_blocks:
+                for block_index, tr_block in enumerate(tool_result_blocks):
                     tuid = tr_block.get("tool_use_id")
                     result_text = _extract_text(tr_block.get("content", ""))
+                    result_raw_ref = {
+                        **raw_ref,
+                        "block_index": block_index,
+                        "block_type": "tool_result",
+                        "is_error": bool(tr_block.get("is_error")),
+                    }
                     ev = NormalizedEvent(
-                        event_id=event_id,
+                        event_id=_block_event_id(event_id, block_index, len(tool_result_blocks)),
                         source="main",
                         agent_id="main",
                         turn_index=turn_index,
@@ -129,7 +144,8 @@ def normalize_main_entries(
                         text=result_text,
                         tool_use_id=tuid,
                         timestamp=timestamp,
-                        raw_ref=raw_ref,
+                        raw_ref=result_raw_ref,
+                        metadata={"is_error": bool(tr_block.get("is_error"))},
                     )
                     events.append(ev)
                 continue
@@ -151,7 +167,7 @@ def normalize_main_entries(
             tool_use_blocks = _find_tool_use_blocks(content)
             if tool_use_blocks:
                 # Emit one tool_call event per tool_use block
-                for tu_block in tool_use_blocks:
+                for block_index, tu_block in enumerate(tool_use_blocks):
                     tool_name = tu_block.get("name")
                     tool_use_id = tu_block.get("id")
                     inp = tu_block.get("input", {})
@@ -160,8 +176,10 @@ def normalize_main_entries(
                     tool_raw_ref = dict(raw_ref)
                     if isinstance(inp, dict):
                         tool_raw_ref["tool_input"] = inp
+                    tool_raw_ref["block_index"] = block_index
+                    tool_raw_ref["block_type"] = "tool_use"
                     ev = NormalizedEvent(
-                        event_id=event_id,
+                        event_id=_block_event_id(event_id, block_index, len(tool_use_blocks)),
                         source="main",
                         agent_id="main",
                         turn_index=turn_index,
@@ -207,7 +225,8 @@ def normalize_main_entries(
                 text=result_text,
                 tool_use_id=tool_use_id,
                 timestamp=timestamp,
-                raw_ref=raw_ref,
+                raw_ref={**raw_ref, "is_error": bool(entry.get("is_error"))},
+                metadata={"is_error": bool(entry.get("is_error"))},
             )
             events.append(ev)
 

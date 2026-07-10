@@ -824,6 +824,63 @@ class ViewerBackend:
             return self.adapter.name
         return None
 
+    def diagnose_openspec_graph_response(
+        self,
+        payload: dict[str, Any],
+        repo_root: Path,
+    ) -> tuple[int, dict[str, Any]]:
+        change = str(payload.get("change") or "").strip()
+        feedback = str(payload.get("feedback") or "").strip()
+        session_id = str(payload.get("sessionId") or "").strip()
+        if not change or not _OPENSPEC_CHANGE_RE.fullmatch(change):
+            return 400, {"ok": False, "error": "valid OpenSpec change is required"}
+        if not feedback:
+            return 400, {"ok": False, "error": "feedback is required"}
+        if not re.fullmatch(r"[0-9a-zA-Z_-]{20,64}", session_id):
+            return 400, {"ok": False, "error": "valid sessionId is required"}
+
+        status, graph_payload = _load_openspec_graph_response(change, repo_root)
+        if status != 200:
+            return status, graph_payload
+        metadata = graph_payload.get("eventGraph", {}).get("metadata", {})
+        source_kind = str(metadata.get("source_kind") or "")
+        if source_kind not in {"session_full", "session_task"}:
+            return 409, {
+                "ok": False,
+                "error": "feedback diagnosis requires a Session-bound Event Graph",
+                "code": "session_graph_required",
+            }
+        bound_session = str(metadata.get("session_id") or "")
+        if bound_session and bound_session != session_id:
+            return 409, {
+                "ok": False,
+                "error": "selected Session does not match the graph source binding",
+                "code": "session_graph_mismatch",
+            }
+
+        from ccwhat.diagnosis.feedback import analyze_graph_feedback
+
+        analyzer_cmd = self.analyzer_cmd
+        if isinstance(analyzer_cmd, str):
+            import shlex
+            analyzer_cmd = shlex.split(analyzer_cmd)
+        analyzer_agent = self.analyzer_agent or self._agent_name() or "claude"
+        diagnosis = analyze_graph_feedback(
+            feedback=feedback,
+            action_graph=graph_payload["actionGraph"],
+            event_graph=graph_payload["eventGraph"],
+            analyzer_cmd=analyzer_cmd,
+            analyzer_agent=analyzer_agent,
+            analyzer_timeout=self.analyzer_timeout,
+        )
+        return 200, {
+            "ok": True,
+            "change": change,
+            "sessionId": session_id,
+            "analyzerAgent": analyzer_agent,
+            "diagnosis": diagnosis,
+        }
+
     def get_projects_response(self) -> tuple[int, Any]:
         try:
             projects = self._sessions_data()
@@ -1534,6 +1591,18 @@ def create_app(
     async def openspec_graph(change: str) -> JSONResponse:
         status, data = await run_in_threadpool(
             lambda: _load_openspec_graph_response(change, Path(__file__).parent.parent)
+        )
+        return _json(data, status)
+
+    @app.post("/api/openspec-graph-diagnose", include_in_schema=False)
+    async def openspec_graph_diagnose(request: Request) -> JSONResponse:
+        payload = await _read_json_body(request)
+        if payload is None:
+            return _json({"ok": False, "error": "invalid JSON body"}, 400)
+        status, data = await run_in_threadpool(
+            backend.diagnose_openspec_graph_response,
+            payload,
+            Path(__file__).parent.parent,
         )
         return _json(data, status)
 

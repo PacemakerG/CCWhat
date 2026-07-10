@@ -18,6 +18,7 @@ from ccwhat.diagnosis.mapping import map_events_to_actions
 from ccwhat.diagnosis.symptoms import detect_symptoms
 from ccwhat.task_dataset import build_dataset_bundle
 from ccwhat.task_segments.models import EvidenceBundle, NormalizedEvent, TaskSegment, TaskSegmentationResult
+from ccwhat.task_segments.events import normalize_main_entries
 
 
 def _event(
@@ -97,6 +98,38 @@ def _bundle_dir(tmp_path: Path, *, include_verify: bool = False, complete_tasks:
 
 
 class DiagnosisGraphTests(unittest.TestCase):
+    def test_claude_multi_block_entries_get_unique_ids_and_preserve_results(self) -> None:
+        entries = [
+            {
+                "_fileLine": 1,
+                "type": "assistant",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "message": {"content": [
+                    {"type": "tool_use", "id": "tool-1", "name": "Read", "input": {"file_path": "a.py"}},
+                    {"type": "tool_use", "id": "tool-2", "name": "Edit", "input": {"file_path": "a.py", "new_string": "bad"}},
+                ]},
+            },
+            {
+                "_fileLine": 2,
+                "type": "user",
+                "timestamp": "2026-01-01T00:00:01Z",
+                "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "tool-1", "content": "contents"},
+                    {"type": "tool_result", "tool_use_id": "tool-2", "content": "edit failed", "is_error": True},
+                ]},
+            },
+        ]
+
+        events = normalize_main_entries(entries, "session-123")
+        graph = build_event_graph({"events": [event.__dict__ for event in events]}).to_dict()
+
+        self.assertEqual(len({event.event_id for event in events}), 4)
+        self.assertEqual(len({node["node_id"] for node in graph["nodes"]}), 4)
+        failed = next(node for node in graph["nodes"] if node["data"]["tool_call_id"] == "tool-2" and node["type"] == "tool_result")
+        self.assertTrue(failed["data"]["is_error"])
+        self.assertEqual(failed["data"]["result_summary"], "edit failed")
+        self.assertEqual(failed["data"]["raw_ref"]["session_id"], "session-123")
+
     def test_event_graph_builds_core_nodes_and_edges(self) -> None:
         trace = {
             "events": [
@@ -150,6 +183,22 @@ class DiagnosisGraphTests(unittest.TestCase):
         actions = {action.type: action for action in action_graph.actions}
 
         self.assertEqual(actions["verify"].event_ids, ["main:1"])
+
+    def test_reading_openspec_artifact_does_not_mark_action_observed(self) -> None:
+        action_graph = build_openspec_action_graph()
+        trace = {"events": [{
+            "event_id": "main:1",
+            "event_type": "tool_call",
+            "tool_name": "Read",
+            "files": ["openspec/changes/demo/proposal.md"],
+        }]}
+
+        map_events_to_actions(action_graph, trace)
+        actions = {action.type: action for action in action_graph.actions}
+
+        self.assertEqual(actions["proposal"].status, "not_observed")
+        self.assertFalse(actions["proposal"].event_ids)
+        self.assertEqual(len(action_graph.actions), 7)
 
     def test_symptoms_for_missing_verify_and_unsupported_claim(self) -> None:
         trace = {"events": [event.__dict__ for event in _openspec_events()], "final_claim": "Implementation complete.", "changes": []}

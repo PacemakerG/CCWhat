@@ -59,7 +59,7 @@ class ActionNode:
     action_id: str
     type: str
     label: str
-    status: str = "missing"
+    status: str = "not_observed"
     event_ids: list[str] = field(default_factory=list)
     required: bool = True
     expected_because: list[str] = field(default_factory=list)
@@ -90,6 +90,8 @@ class ActionEventMapping:
     event_ids: list[str]
     reason: str
     confidence: str = "medium"
+    event_reasons: dict[str, str] = field(default_factory=dict)
+    event_confidences: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

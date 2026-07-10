@@ -7,12 +7,13 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from click.testing import CliRunner
 
 from ccwhat.cli import cli
 from ccwhat.openspec_graph import sync_openspec_graph
-from viewer.server import _load_openspec_graph_response
+from viewer.server import _load_openspec_graph_response, create_app
 
 
 def _make_change(root: Path, name: str = "demo-change") -> Path:
@@ -182,6 +183,46 @@ class OpenSpecGraphSyncTests(unittest.TestCase):
 
             self.assertEqual(status, 400)
             self.assertFalse(payload["ok"])
+
+    def test_feedback_diagnosis_reuses_analyzer_and_validates_graph_refs(self) -> None:
+        session_id = "session-step-000000001"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = _make_change(root)
+            projects_dir = root / "projects"
+            _write_session(projects_dir, session_id=session_id)
+            sync_openspec_graph(
+                change="demo-change",
+                session_id=session_id,
+                projects_dir=projects_dir,
+                cwd=root,
+            )
+            event_graph = json.loads((change / "graph" / "event_graph.json").read_text(encoding="utf-8"))
+            apply_event = next(
+                node["node_id"]
+                for node in event_graph["nodes"]
+                if node["type"] == "file_edit" and "ccwhat/foo.py" in node["data"]["files"]
+            )
+            analyzer_output = json.dumps({
+                "symptoms": [{"type": "wrong_output", "summary": "implementation is wrong"}],
+                "suspicious_actions": [{"action_id": "A5", "reason": "source edit"}],
+                "suspicious_events": [{"event_id": apply_event, "action_id": "A5", "reason": "wrong edit"}],
+                "missing_evidence": [],
+                "summary": "Apply contains the likely issue.",
+            })
+            app = create_app(projects_dir, root / "logs", analyzer_agent="claude")
+            backend = app.state.viewer_backend
+
+            with mock.patch("ccwhat.diagnosis.feedback.run_mc_analysis", return_value=(analyzer_output, 12)) as analyze:
+                status, payload = backend.diagnose_openspec_graph_response(
+                    {"change": "demo-change", "sessionId": session_id, "feedback": "output is wrong"},
+                    root,
+                )
+
+            self.assertEqual(status, 200)
+            self.assertTrue(payload["diagnosis"]["available"])
+            self.assertEqual(payload["diagnosis"]["suspicious_events"][0]["event_id"], apply_event)
+            analyze.assert_called_once()
 
 
 if __name__ == "__main__":
