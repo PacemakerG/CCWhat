@@ -25,7 +25,12 @@ def analyze_graph_feedback(
     analyzer_timeout: int | float | None = None,
     runner: Any | None = None,
 ) -> dict[str, Any]:
-    """Run one local Analyzer CLI session and return validated graph references."""
+    """Run one local Analyzer CLI session and return validated graph references.
+
+    If the first Analyzer output is not valid JSON (e.g. unescaped quotes in
+    string values), one automatic format-fix attempt is made.  If that also
+    fails the diagnosis gracefully degrades to ``_unavailable_result``.
+    """
     prompt = build_graph_attribution_prompt(feedback, action_graph, event_graph)
     try:
         raw, elapsed_ms = run_mc_analysis(
@@ -41,12 +46,41 @@ def analyze_graph_feedback(
     try:
         parsed = parse_graph_attribution_output(raw)
     except ValueError as exc:
-        return _unavailable_result("invalid_analyzer_json", str(exc))
+        # One allowed format-fix attempt — only fix JSON syntax, no new facts.
+        fix_prompt = build_graph_attribution_fix_prompt(raw, exc)
+        try:
+            fixed_raw, fix_elapsed = run_mc_analysis(
+                fix_prompt,
+                cmd=analyzer_cmd,
+                agent=analyzer_agent,
+                timeout=analyzer_timeout,
+                runner=runner,
+            )
+        except AnalysisError as fix_exc:
+            return _unavailable_result(fix_exc.code, fix_exc.message)
+        try:
+            parsed = parse_graph_attribution_output(fixed_raw)
+        except ValueError as exc2:
+            return _unavailable_result("invalid_analyzer_json", str(exc2))
+        elapsed_ms += fix_elapsed
 
     result = validate_graph_attribution_result(parsed, action_graph, event_graph)
     result["elapsed_ms"] = elapsed_ms
     result["analyzer_agent"] = analyzer_agent or "claude"
     return result
+
+
+def build_graph_attribution_fix_prompt(raw: str, error: ValueError) -> str:
+    """Build a prompt asking the model to only fix JSON syntax in *raw*."""
+    template = (
+        resources.files("ccwhat")
+        .joinpath("assets/graph_attribution_fix_prompt.md")
+        .read_text(encoding="utf-8")
+    )
+    return (
+        template.replace("{{original_output}}", raw.strip())
+        .replace("{{parse_error}}", str(error))
+    )
 
 
 def build_graph_attribution_prompt(

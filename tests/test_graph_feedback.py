@@ -125,6 +125,89 @@ class GraphFeedbackTests(unittest.TestCase):
         self.assertEqual(result["code"], "analyzer_not_found")
         self.assertFalse(result["suspicious_events"])
 
+    def test_first_parse_fails_then_fix_succeeds(self) -> None:
+        """Unescaped quotes cause first parse failure, format fix recovers."""
+        raw_valid = json.dumps({
+            "symptoms": [{"type": "validation_failed", "summary": "test failed"}],
+            "suspicious_actions": [{"action_id": "A6", "reason": "failed verification"}],
+            "suspicious_events": [{"event_id": "E41", "action_id": "A6", "reason": "failed result"}],
+            "missing_evidence": [],
+            "summary": "Verification failed.",
+        })
+        raw_broken = '{"summary": "contains unescaped "quotes" inside"}'
+
+        calls = []
+
+        def runner(command, **kwargs):
+            calls.append((command, kwargs))
+            # First call returns broken JSON, second call returns valid JSON
+            if len(calls) == 1:
+                return subprocess.CompletedProcess(command, 0, stdout=raw_broken, stderr="")
+            return subprocess.CompletedProcess(command, 0, stdout=raw_valid, stderr="")
+
+        result = analyze_graph_feedback(
+            feedback="The routing test failed",
+            action_graph=ACTION_GRAPH,
+            event_graph=EVENT_GRAPH,
+            analyzer_agent="claude",
+            runner=runner,
+        )
+
+        self.assertTrue(result["available"])
+        self.assertEqual(result["suspicious_events"][0]["event_id"], "E41")
+        # One main analysis + one format fix = 2 calls
+        self.assertEqual(len(calls), 2)
+
+    def test_first_parse_ok_only_one_call(self) -> None:
+        """First parse succeeds → no second Analyzer call."""
+        raw_valid = json.dumps({
+            "symptoms": [{"type": "validation_failed", "summary": "test failed"}],
+            "suspicious_actions": [{"action_id": "A6", "reason": "failed verification"}],
+            "suspicious_events": [{"event_id": "E41", "action_id": "A6", "reason": "failed result"}],
+            "missing_evidence": [],
+            "summary": "Verification failed.",
+        })
+
+        calls = []
+
+        def runner(command, **kwargs):
+            calls.append((command, kwargs))
+            return subprocess.CompletedProcess(command, 0, stdout=raw_valid, stderr="")
+
+        result = analyze_graph_feedback(
+            feedback="The routing test failed",
+            action_graph=ACTION_GRAPH,
+            event_graph=EVENT_GRAPH,
+            analyzer_agent="claude",
+            runner=runner,
+        )
+
+        self.assertTrue(result["available"])
+        self.assertEqual(len(calls), 1)
+
+    def test_fix_also_fails_degrades(self) -> None:
+        """Both first and fix attempt return broken JSON → unavailable."""
+        raw_broken = '{"summary": "contains unescaped "quotes" inside"}'
+
+        calls = []
+
+        def runner(command, **kwargs):
+            calls.append((command, kwargs))
+            return subprocess.CompletedProcess(command, 0, stdout=raw_broken, stderr="")
+
+        result = analyze_graph_feedback(
+            feedback="The routing test failed",
+            action_graph=ACTION_GRAPH,
+            event_graph=EVENT_GRAPH,
+            analyzer_agent="claude",
+            runner=runner,
+        )
+
+        self.assertFalse(result["available"])
+        self.assertEqual(result["status"], "unavailable")
+        self.assertEqual(result["code"], "invalid_analyzer_json")
+        self.assertEqual(len(calls), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

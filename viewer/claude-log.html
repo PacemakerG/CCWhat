@@ -1622,6 +1622,7 @@ body {
   .ops-graph-title { font-size: 12px; font-weight: 600; color: var(--text-primary); }
   .ops-graph-meta { font-size: 11px; color: var(--text-tertiary); }
   .ops-graph-canvas { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); overflow: auto; }
+  .ops-graph-event .ops-graph-canvas { max-height: min(62vh, 720px); }
   .ops-graph-svg { display: block; min-width: 100%; }
   .ops-graph-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; margin-bottom: 10px; }
   .ops-graph-stat { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); padding: 8px 10px; }
@@ -1633,7 +1634,7 @@ body {
   .ops-graph-edge-label { font-family: var(--font-mono); font-size: 8px; fill: var(--text-tertiary); }
   .ops-graph-node.is-clickable { cursor: pointer; }
   .ops-graph-node.highlight rect { stroke: var(--accent); stroke-width: 2.4px; }
-  .ops-feedback-panel { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .ops-feedback-panel { margin: 12px 0; border-top: 1px solid var(--border); padding-top: 12px; }
   .ops-feedback-label { font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
   .ops-feedback-input { width: 100%; min-height: 72px; resize: vertical; font-family: var(--font-sans); line-height: 1.5; }
   .ops-feedback-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
@@ -2354,7 +2355,6 @@ pre, code, .code-block, .diff-schema-pre { font-family: var(--font-mono); }
                 <button class="btn" onclick="loadOpenSpecGraph()" data-i18n="load_graph">加载图</button>
                 <span class="ops-graph-status" id="openspecGraphStatus" data-i18n="openspec_graph_hint">读取 openspec/changes/&lt;change&gt;/graph</span>
               </div>
-              <div id="openspecGraphContent"><div class="placeholder">输入 change name 后加载 Action Graph 和 Event Graph</div></div>
               <div class="ops-feedback-panel">
                 <div class="ops-feedback-label" data-i18n="openspec_feedback_label">描述你发现的问题</div>
                 <textarea class="field ops-feedback-input" id="openspecGraphFeedbackInput" data-i18n-placeholder="openspec_feedback_placeholder" placeholder="例如：实现完成了，但是按钮点击后仍跳转到错误页面"></textarea>
@@ -2364,6 +2364,7 @@ pre, code, .code-block, .diff-schema-pre { font-family: var(--font-mono); }
                 </div>
                 <div id="openspecGraphDiagnosisReport"></div>
               </div>
+              <div id="openspecGraphContent"><div class="placeholder">输入 change name 后加载 Action Graph 和 Event Graph</div></div>
             </div>
           </div>
           <div id="diagContent"><div class="placeholder">选择一个 session 并加载 task 切分后查看诊断</div></div>
@@ -7177,7 +7178,7 @@ function renderPointLineGraph(title, nodes, edges, kind) {
     </g>`;
   }
 
-  return `<div>
+  return `<div class="ops-graph-block ops-graph-${kind}">
     <div class="ops-graph-head">
       <span class="ops-graph-title">${esc(title)}</span>
       <span class="ops-graph-meta">${nodes.length} nodes · ${(edges || []).length} edges</span>

@@ -30,6 +30,12 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertIn("function renderOpenSpecFeedbackDiagnosis", html)
         self.assertIn("function highlightOpenSpecGraphNode", html)
 
+        feedback_pos = html.index('id="openspecGraphFeedbackInput"')
+        graph_pos = html.index('id="openspecGraphContent"')
+        self.assertLess(feedback_pos, graph_pos)
+        self.assertIn('.ops-graph-event .ops-graph-canvas { max-height:', html)
+        self.assertIn('class="ops-graph-block ops-graph-${kind}"', html)
+
 
 if __name__ == "__main__":
     unittest.main()
