@@ -15,6 +15,8 @@
   document.documentElement.setAttribute('lang', locale === 'en' ? 'en' : 'zh-CN');
 })();
 </script>
+<link rel="stylesheet" href="/static/graph-diagnosis/graph-diagnosis.css">
+<script defer src="/static/graph-diagnosis/graph-diagnosis.js"></script>
 <style>
 /* ── Token system ── */
 :root {
@@ -2574,6 +2576,7 @@ function toggleTheme() {
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('ccwhat-theme', next);
   document.getElementById('themeBtn').textContent = next === 'dark' ? '☀' : '☾';
+  window.dispatchEvent(new CustomEvent('ccwhat-theme-change', { detail: { theme: next } }));
 }
 (function(){
   const t = document.documentElement.getAttribute('data-theme');
@@ -6924,6 +6927,7 @@ function refreshDiagnostics() { renderDiagnosticsPage(); }
 
 const OPENSPEC_GRAPH_CHANGE_KEY = 'ccwhat-openspec-graph-change';
 let currentOpenSpecGraphPayload = null;
+let currentOpenSpecFeedbackDiagnosis = null;
 
 function ensureOpenSpecGraphInputDefault() {
   const input = document.getElementById('openspecGraphChangeInput');
@@ -6962,6 +6966,7 @@ async function loadOpenSpecGraph() {
     if (!resp.ok) throw await apiError(resp, url);
     const payload = await resp.json();
     currentOpenSpecGraphPayload = payload;
+    currentOpenSpecFeedbackDiagnosis = null;
     contentEl.innerHTML = renderOpenSpecGraph(payload);
     const reportEl = document.getElementById('openspecGraphDiagnosisReport');
     if (reportEl) reportEl.innerHTML = '';
@@ -7006,7 +7011,9 @@ async function diagnoseOpenSpecGraph() {
     });
     if (!resp.ok) throw await apiError(resp, url);
     const payload = await resp.json();
-    if (reportEl) reportEl.innerHTML = renderOpenSpecFeedbackDiagnosis(payload?.diagnosis || {});
+    currentOpenSpecFeedbackDiagnosis = payload?.diagnosis || null;
+    updateGraphDiagnosisContext();
+    if (reportEl) reportEl.innerHTML = '';
     const available = Boolean(payload?.diagnosis?.available);
     if (statusEl) statusEl.textContent = available
       ? (ccwhatLocale === 'zh' ? `诊断完成 · ${payload.analyzerAgent || 'analyzer'}` : `Diagnosis complete · ${payload.analyzerAgent || 'analyzer'}`)
@@ -7019,210 +7026,44 @@ async function diagnoseOpenSpecGraph() {
   }
 }
 
-function renderOpenSpecFeedbackDiagnosis(diagnosis) {
-  if (!diagnosis?.available) {
-    const detail = (diagnosis?.missing_evidence || []).join('；') || diagnosis?.code || 'Analyzer unavailable';
-    return `<div class="ops-graph-warning">${esc(detail)}</div>`;
-  }
-  const symptoms = diagnosis.symptoms || [];
-  const actions = diagnosis.suspicious_actions || [];
-  const events = diagnosis.suspicious_events || [];
-  const missing = diagnosis.missing_evidence || [];
-  const symptomRows = symptoms.length
-    ? symptoms.map(item => `<div class="ops-diagnosis-row"><span class="ops-diagnosis-link">${esc(item.type || 'unknown')}</span><span>${esc(item.summary || '')}</span></div>`).join('')
-    : '<div class="placeholder">No classified symptom</div>';
-  const actionRows = actions.length
-    ? actions.map(item => {
-        const encoded = encodeURIComponent(String(item.action_id || ''));
-        return `<div class="ops-diagnosis-row"><button class="nav-btn ops-diagnosis-link" onclick="highlightOpenSpecGraphNode('${encoded}')">${esc(item.action_id)}</button><span>${esc(item.reason || '')}</span></div>`;
-      }).join('')
-    : '<div class="placeholder">No valid Action references</div>';
-  const eventRows = events.length
-    ? events.map(item => {
-        const encoded = encodeURIComponent(String(item.event_id || ''));
-        const action = item.action_id ? ` · ${esc(item.action_id)}` : '';
-        return `<div class="ops-diagnosis-row"><button class="nav-btn ops-diagnosis-link" onclick="highlightOpenSpecGraphNode('${encoded}')">${esc(item.event_id)}</button><span>${action}${action ? ' — ' : ''}${esc(item.reason || '')}</span></div>`;
-      }).join('')
-    : '<div class="placeholder">No valid Event references</div>';
-  const missingRows = missing.length
-    ? missing.map(item => `<div class="ops-diagnosis-row"><span>${esc(item)}</span></div>`).join('')
-    : '<div class="placeholder">No missing evidence reported</div>';
-  return `<div class="ops-diagnosis-report">
-    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Summary</div><div style="font-size:13px;line-height:1.55;color:var(--text-primary)">${esc(diagnosis.summary || '')}</div></div>
-    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Symptoms</div>${symptomRows}</div>
-    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Suspicious Actions</div>${actionRows}</div>
-    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Suspicious Events</div>${eventRows}</div>
-    <div class="ops-diagnosis-card"><div class="ops-diagnosis-title">Missing Evidence</div>${missingRows}</div>
-  </div>`;
-}
-
 function renderOpenSpecGraph(payload) {
-  const actionGraph = payload?.actionGraph || {};
-  const eventGraph = payload?.eventGraph || {};
-  const diagnosis = payload?.diagnosis || {};
-  const metadata = eventGraph.metadata || actionGraph.metadata || diagnosis.metadata || {};
-  const actions = actionGraph.actions || [];
-  const actionEdges = actionGraph.edges || [];
-  const events = eventGraph.nodes || [];
-  const eventEdges = eventGraph.edges || [];
-  const symptoms = diagnosis.symptoms || [];
-  const chains = diagnosis.causal_chains || [];
-  const sourceKind = metadata.source_kind || 'unknown';
-  const fallbackWarning = sourceKind === 'milestone_fallback'
-    ? '<div class="ops-graph-warning">当前 Event Graph 使用 milestone fallback，不是 session step 级细图。请绑定 sessionId/taskId 或 datasetId 后重新生成。</div>'
-    : '';
-
-  const actionNodes = actions.map(action => ({
-    id: action.action_id,
-    label: action.label || action.type || action.action_id,
-    sub: `${action.status || 'unknown'} · ${(action.event_ids || []).length} events`,
-    status: action.status || 'unknown',
-    eventIds: action.event_ids || []
-  }));
-  const eventNodes = events.map(node => ({
-    id: node.node_id,
-    label: node.label || node.type || node.node_id,
-    sub: node.type || node.node_id,
-    status: eventNodeStatus(node)
-  }));
-
-  return `${fallbackWarning}<div class="ops-graph-summary">
-      ${renderOpenSpecStat('Change', payload.change || '—')}
-      ${renderOpenSpecStat('Source', sourceKind)}
-      ${renderOpenSpecStat('Actions', actions.length)}
-      ${renderOpenSpecStat('Events', events.length)}
-      ${renderOpenSpecStat('Symptoms', symptoms.length)}
-      ${renderOpenSpecStat('Top Chains', chains.length)}
-    </div>
-    <div class="ops-graph-layout">
-      ${renderPointLineGraph(t('action_graph'), actionNodes, actionEdges, 'action')}
-      ${renderPointLineGraph(t('event_graph'), eventNodes, eventEdges, 'event')}
-    </div>`;
+  window.setTimeout(updateGraphDiagnosisContext, 0);
+  return '<div id="graph-diagnosis-root"></div>';
 }
 
-function renderOpenSpecStat(label, value) {
-  return `<div class="ops-graph-stat">
-    <div class="ops-graph-stat-k">${esc(label)}</div>
-    <div class="ops-graph-stat-v">${esc(value)}</div>
-  </div>`;
+function graphDiagnosisContext() {
+  const metadata = currentOpenSpecGraphPayload?.eventGraph?.metadata || {};
+  return {
+    changeName: (document.getElementById('openspecGraphChangeInput')?.value || '').trim(),
+    sessionId: metadata.session_id || document.getElementById('sessionSel')?.value || undefined,
+    locale: ccwhatLocale === 'en' ? 'en' : 'zh',
+    theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light',
+    graphPayload: currentOpenSpecGraphPayload,
+    feedbackDiagnosis: currentOpenSpecFeedbackDiagnosis,
+  };
 }
 
-function eventNodeStatus(node) {
-  const type = String(node?.type || '');
-  if (/error|failed|failure/i.test(type)) return 'failed';
-  if (/artifact|edit|command|tool|claim|event/i.test(type)) return 'observed';
-  return 'unknown';
-}
-
-function graphStatusColors(status) {
-  if (status === 'observed') return { fill: 'var(--type-asst-bg)', stroke: 'var(--type-asst-fg)' };
-  if (status === 'missing' || status === 'failed') return { fill: 'color-mix(in srgb, var(--danger) 14%, var(--bg-elevated))', stroke: 'var(--danger)' };
-  if (status === 'skipped') return { fill: 'color-mix(in srgb, var(--warning) 16%, var(--bg-elevated))', stroke: 'var(--warning)' };
-  return { fill: 'var(--bg-elevated)', stroke: 'var(--border-strong)' };
-}
-
-function renderPointLineGraph(title, nodes, edges, kind) {
-  if (!nodes.length) {
-    return `<div>
-      <div class="ops-graph-head"><span class="ops-graph-title">${esc(title)}</span></div>
-      <div class="ops-graph-canvas"><div class="placeholder">No graph nodes</div></div>
-    </div>`;
+function updateGraphDiagnosisContext() {
+  const root = document.getElementById('graph-diagnosis-root');
+  if (!root || !currentOpenSpecGraphPayload) return;
+  if (!window.CCWhatGraphDiagnosis) {
+    root.innerHTML = '<div class="placeholder">Graph Diagnosis React bundle failed to load.</div>';
+    return;
   }
-
-  const positions = {};
-  let width;
-  let height;
-  if (kind === 'action') {
-    width = Math.max(720, 120 + nodes.length * 150);
-    height = 180;
-    nodes.forEach((node, i) => {
-      positions[node.id] = { x: 80 + i * 150, y: 78 };
-    });
-  } else {
-    width = Math.max(720, 120 + nodes.length * 150);
-    height = 180;
-    nodes.forEach((node, i) => {
-      positions[node.id] = { x: 80 + i * 150, y: 78 };
-    });
-  }
-
-  let edgeSvg = '';
-  let nodeSvg = '';
-  const nodeIds = new Set(nodes.map(node => node.id));
-  for (const edge of edges || []) {
-    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
-    const from = positions[edge.from];
-    const to = positions[edge.to];
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2 - 5;
-    edgeSvg += `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="var(--border-strong)" stroke-width="1.2" marker-end="url(#${kind}Arrow)"></line>
-      <text class="ops-graph-edge-label" x="${midX}" y="${midY}" text-anchor="middle">${esc(edge.type || '')}</text>`;
-  }
-
-  for (const node of nodes) {
-    const pos = positions[node.id];
-    const colors = graphStatusColors(node.status);
-    const label = truncateGraphText(node.label, 22);
-    const sub = truncateGraphText(node.sub || node.id, 28);
-    const eventIds = encodeURIComponent(JSON.stringify(node.eventIds || []));
-    const clickAttrs = kind === 'action' && node.eventIds?.length
-      ? ` class="ops-graph-node is-clickable" onclick="highlightOpenSpecGraphEvents('${eventIds}')"`
-      : ' class="ops-graph-node"';
-    nodeSvg += `<g${clickAttrs} data-node-id="${escRaw(node.id)}">
-      <rect x="${pos.x - 58}" y="${pos.y - 24}" width="116" height="48" rx="6" fill="${colors.fill}" stroke="${colors.stroke}" stroke-width="1.2"></rect>
-      <text class="ops-graph-node-label" x="${pos.x}" y="${pos.y - 3}" text-anchor="middle">${esc(label)}</text>
-      <text class="ops-graph-node-sub" x="${pos.x}" y="${pos.y + 14}" text-anchor="middle">${esc(sub)}</text>
-    </g>`;
-  }
-
-  return `<div class="ops-graph-block ops-graph-${kind}">
-    <div class="ops-graph-head">
-      <span class="ops-graph-title">${esc(title)}</span>
-      <span class="ops-graph-meta">${nodes.length} nodes · ${(edges || []).length} edges</span>
-    </div>
-    <div class="ops-graph-canvas">
-      <svg class="ops-graph-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="${esc(title)}">
-        <defs>
-          <marker id="${kind}Arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border-strong)"></path>
-          </marker>
-        </defs>
-        ${edgeSvg}
-        ${nodeSvg}
-      </svg>
-    </div>
-  </div>`;
+  window.CCWhatGraphDiagnosis.mount(root, graphDiagnosisContext());
 }
 
-function truncateGraphText(value, limit) {
-  const s = String(value ?? '');
-  return s.length > limit ? `${s.slice(0, Math.max(0, limit - 1))}…` : s;
-}
-
-function highlightOpenSpecGraphEvents(encodedEventIds) {
-  let eventIds = [];
-  try {
-    eventIds = JSON.parse(decodeURIComponent(encodedEventIds));
-  } catch {
-    eventIds = [];
+window.addEventListener('ccwhat-locale-change', updateGraphDiagnosisContext);
+window.addEventListener('ccwhat-theme-change', updateGraphDiagnosisContext);
+window.addEventListener('ccwhat:navigate-to-event', async (event) => {
+  const detail = event.detail || {};
+  const sessionSel = document.getElementById('sessionSel');
+  if (detail.sessionId && sessionSel && sessionSel.value !== detail.sessionId) {
+    sessionSel.value = detail.sessionId;
+    await loadSession();
   }
-  const idSet = new Set(eventIds.map(String));
-  document.querySelectorAll('#openspecGraphContent .ops-graph-node').forEach(node => {
-    const nodeId = node.getAttribute('data-node-id');
-    node.classList.toggle('highlight', idSet.has(String(nodeId)));
-  });
-}
-
-function highlightOpenSpecGraphNode(encodedNodeId) {
-  const nodeId = decodeURIComponent(encodedNodeId || '');
-  let target = null;
-  document.querySelectorAll('#openspecGraphContent .ops-graph-node').forEach(node => {
-    const matches = String(node.getAttribute('data-node-id')) === String(nodeId);
-    node.classList.toggle('highlight', matches);
-    if (matches) target = node;
-  });
-  if (target?.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-}
+  if (detail.eventId) navigateToEventId(detail.eventId);
+});
 
 function renderExportPage() {
   // Already rendered statically in HTML; just update dynamic state

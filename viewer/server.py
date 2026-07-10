@@ -19,6 +19,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from ccwhat.adapters.base import AdapterNotImplementedError, AgentAdapter, SessionRenameError
@@ -1413,6 +1414,11 @@ def create_app(
     )
     app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
     app.state.viewer_backend = backend
+    app.mount(
+        "/static/graph-diagnosis",
+        StaticFiles(directory=backend.viewer_dir / "static" / "graph-diagnosis"),
+        name="graph-diagnosis",
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
