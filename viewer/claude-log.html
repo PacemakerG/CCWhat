@@ -1638,6 +1638,7 @@ body {
   .ops-feedback-label { font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
   .ops-feedback-input { width: 100%; min-height: 72px; resize: vertical; font-family: var(--font-sans); line-height: 1.5; }
   .ops-feedback-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .btn.ops-diagnosis-generate-btn { border-radius: 999px; padding-inline: 14px; }
   .ops-diagnosis-report { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
   .ops-diagnosis-card { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); padding: 10px 12px; }
   .ops-diagnosis-title { font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
@@ -2359,7 +2360,7 @@ pre, code, .code-block, .diff-schema-pre { font-family: var(--font-mono); }
                 <div class="ops-feedback-label" data-i18n="openspec_feedback_label">描述你发现的问题</div>
                 <textarea class="field ops-feedback-input" id="openspecGraphFeedbackInput" data-i18n-placeholder="openspec_feedback_placeholder" placeholder="例如：实现完成了，但是按钮点击后仍跳转到错误页面"></textarea>
                 <div class="ops-feedback-actions">
-                  <button class="btn" id="openspecGraphDiagnoseBtn" onclick="diagnoseOpenSpecGraph()" data-i18n="generate_diagnosis">生成诊断</button>
+                  <button class="btn ops-diagnosis-generate-btn" id="openspecGraphDiagnoseBtn" onclick="diagnoseOpenSpecGraph()" data-i18n="generate_diagnosis">生成诊断</button>
                   <span class="ops-graph-status" id="openspecGraphDiagnosisStatus" data-i18n="openspec_feedback_hint">使用本地 Analyzer 启动一次非交互诊断</span>
                 </div>
                 <div id="openspecGraphDiagnosisReport"></div>

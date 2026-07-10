@@ -67,6 +67,8 @@ Archive a completed change in the experimental workflow.
 
 5. **Perform the archive**
 
+   Before the archive work, run `ccwhat openspec-mark --change "<name>" --action archive --phase start --marker-id "<name>-archive-start"`. Run `ccwhat openspec-mark --change "<name>" --action archive --phase end --marker-id "<name>-archive-end"` before moving the change directory, so it can still write `graph/markers.jsonl`.
+
    Before moving the change directory, record the archive intent and sync graph artifacts:
    ```bash
    ccwhat openspec-graph sync --change "<name>" --event archive_ran --success

@@ -9,6 +9,7 @@ from ccwhat.commands.discover import discover
 from ccwhat.commands.export import export
 from ccwhat.commands.import_ import import_
 from ccwhat.commands.openspec_graph import openspec_graph
+from ccwhat.commands.openspec_mark import openspec_mark
 from ccwhat.commands.proxy import proxy
 from ccwhat.commands.run import run
 from ccwhat.commands.setup import setup
@@ -118,3 +119,4 @@ cli.add_command(clear_req_resp)
 cli.add_command(start_mc)  # deprecated, hidden alias
 cli.add_command(diagnose)
 cli.add_command(openspec_graph)
+cli.add_command(openspec_mark)

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,12 @@ class OpenSpecGraphError(ValueError):
     """Raised when an OpenSpec graph cannot be synchronized."""
 
 
+_CHANGE_NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
+_MARKER_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
+_MARKER_PHASES = {"start", "end"}
+_ACTION_IDS_BY_TYPE = {action_type: action_id for action_id, action_type, _ in OPEN_SPEC_ACTIONS}
+
+
 @dataclass
 class OpenSpecGraphEvent:
     type: str
@@ -41,6 +48,46 @@ class OpenSpecGraphEvent:
         return {key: value for key, value in asdict(self).items() if value not in (None, {}, [])}
 
 
+def write_openspec_marker(
+    *,
+    change: str,
+    action: str,
+    phase: str,
+    marker_id: str,
+    cwd: str | Path | None = None,
+) -> Path:
+    """Append one explicit OpenSpec action boundary marker."""
+    if not _CHANGE_NAME_RE.fullmatch(change):
+        raise OpenSpecGraphError("change must be a lowercase kebab-case name.")
+    if action not in _ACTION_IDS_BY_TYPE:
+        raise OpenSpecGraphError(f"action must be one of: {', '.join(_ACTION_IDS_BY_TYPE)}.")
+    if phase not in _MARKER_PHASES:
+        raise OpenSpecGraphError("phase must be start or end.")
+    if not _MARKER_ID_RE.fullmatch(marker_id):
+        raise OpenSpecGraphError("marker-id must contain only letters, digits, '.', '_', ':' or '-'.")
+
+    root = Path(cwd or ".").resolve()
+    graph_dir = _resolve_change_root(change, root) / "graph"
+    graph_dir.mkdir(parents=True, exist_ok=True)
+    path = graph_dir / "markers.jsonl"
+    markers = _load_markers(path)
+    if any(item.get("marker_id") == marker_id for item in markers):
+        raise OpenSpecGraphError(f"marker-id {marker_id!r} already exists for change {change!r}.")
+    if any(item.get("action") == action and item.get("phase") == phase for item in markers):
+        raise OpenSpecGraphError(f"{action} already has a {phase} marker for change {change!r}.")
+
+    marker = {
+        "marker_id": marker_id,
+        "change": change,
+        "action": action,
+        "phase": phase,
+        "timestamp": _now(),
+    }
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(marker, ensure_ascii=False) + "\n")
+    return path
+
+
 def sync_openspec_graph(
     *,
     change: str,
@@ -51,6 +98,7 @@ def sync_openspec_graph(
     dataset_id: str | None = None,
     session_id: str | None = None,
     projects_dir: str | Path | None = None,
+    allow_full_session: bool = False,
     success: bool | None = None,
     note: str | None = None,
     cwd: str | Path | None = None,
@@ -82,6 +130,7 @@ def sync_openspec_graph(
         session_id=session_id,
         task_id=task_id,
         projects_dir=Path(projects_dir).expanduser() if projects_dir else None,
+        allow_full_session=allow_full_session,
     )
 
     outputs = {
@@ -105,6 +154,7 @@ def _build_graph_payloads(
     session_id: str | None,
     task_id: str | None,
     projects_dir: Path | None,
+    allow_full_session: bool,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     missing_evidence: list[str] = []
     if dataset_id:
@@ -124,10 +174,12 @@ def _build_graph_payloads(
         try:
             return _session_graph_payloads(
                 change=change,
+                change_root=change_root,
                 session_id=session_id,
                 task_id=task_id,
                 projects_dir=projects_dir,
                 milestone_events=milestone_events,
+                allow_full_session=allow_full_session,
             )
         except OpenSpecGraphError:
             raise
@@ -169,10 +221,12 @@ def _dataset_graph_payloads(
 def _session_graph_payloads(
     *,
     change: str,
+    change_root: Path,
     session_id: str,
     task_id: str | None,
     projects_dir: Path | None,
     milestone_events: list[dict[str, Any]],
+    allow_full_session: bool,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     session = ClaudeAdapter(projects_dir).load_session(session_id)
     if session is None:
@@ -181,19 +235,33 @@ def _session_graph_payloads(
     if not normalized_events:
         raise OpenSpecGraphError(f"Session {session_id!r} has no normalized events.")
 
-    task_events, source_kind, missing_evidence = _scope_session_events(normalized_events, session, task_id)
+    marker_ranges: list[dict[str, str]] = []
+    if allow_full_session:
+        task_events, source_kind, missing_evidence = _scope_session_events(normalized_events, session, task_id)
+    else:
+        task_events, marker_ranges = _scope_marker_events(
+            normalized_events,
+            change=change,
+            markers_path=change_root / "graph" / "markers.jsonl",
+        )
+        source_kind = "marker_scoped_session"
+        missing_evidence = []
     trace = _trace_from_events(task_events, task_id=task_id or session_id, session_id=session_id)
     event_graph = build_event_graph(trace)
     action_graph = build_openspec_action_graph()
-    map_events_to_actions(action_graph, trace)
+    if source_kind == "marker_scoped_session":
+        _bind_marker_events_to_actions(action_graph, task_events)
+    else:
+        map_events_to_actions(action_graph, trace)
     metadata = _source_metadata(
         change=change,
         source_kind=source_kind,
-        source_confidence="medium" if source_kind == "session_task" else "low",
+        source_confidence="high" if source_kind == "marker_scoped_session" else "medium" if source_kind == "session_task" else "low",
         dataset_id=None,
         session_id=session_id,
         task_id=task_id,
         milestone_events=milestone_events,
+        marker_ranges=marker_ranges,
     )
     diagnosis = {
         "task_id": task_id or session_id,
@@ -274,6 +342,128 @@ def _scope_session_events(
     return events[start : end + 1], "session_task", []
 
 
+def _scope_marker_events(
+    events: list[NormalizedEvent],
+    *,
+    change: str,
+    markers_path: Path,
+) -> tuple[list[NormalizedEvent], list[dict[str, str]]]:
+    markers = _load_markers(markers_path)
+    if not markers:
+        raise OpenSpecGraphError(
+            f"No markers found for change {change!r}. Run ccwhat openspec-mark or use --allow-full-session."
+        )
+
+    pairs: dict[str, dict[str, dict[str, Any]]] = {}
+    seen_marker_ids: set[str] = set()
+    for marker in markers:
+        marker_change = marker.get("change")
+        action = marker.get("action")
+        phase = marker.get("phase")
+        marker_id = marker.get("marker_id")
+        if marker_change != change or action not in _ACTION_IDS_BY_TYPE or phase not in _MARKER_PHASES or not isinstance(marker_id, str):
+            raise OpenSpecGraphError(f"Invalid marker record in {markers_path}.")
+        if marker_id in seen_marker_ids:
+            raise OpenSpecGraphError(f"Duplicate marker id {marker_id!r} in {markers_path}.")
+        seen_marker_ids.add(marker_id)
+        action_pair = pairs.setdefault(action, {})
+        if phase in action_pair:
+            raise OpenSpecGraphError(f"Duplicate {phase} marker for action {action!r}.")
+        action_pair[phase] = marker
+
+    marker_positions: dict[str, int] = {}
+    for marker_id in seen_marker_ids:
+        matches = [
+            index
+            for index, event in enumerate(events)
+            if event.event_type == "tool_call"
+            and str(event.tool_name or "").lower() == "bash"
+            and marker_id in str(event.command or "")
+        ]
+        if len(matches) != 1:
+            detail = "was not found" if not matches else "appears more than once"
+            raise OpenSpecGraphError(f"Marker {marker_id!r} {detail} in the selected Session.")
+        marker_positions[marker_id] = matches[0]
+
+    ranges: list[tuple[int, int, str, dict[str, Any], dict[str, Any]]] = []
+    for action, pair in pairs.items():
+        if set(pair) != _MARKER_PHASES:
+            missing = ", ".join(sorted(_MARKER_PHASES - set(pair)))
+            raise OpenSpecGraphError(f"Action {action!r} has incomplete Marker boundaries: missing {missing}.")
+        start_marker = pair["start"]
+        end_marker = pair["end"]
+        start = marker_positions[start_marker["marker_id"]]
+        end = marker_positions[end_marker["marker_id"]]
+        if end <= start:
+            raise OpenSpecGraphError(f"Action {action!r} end Marker must occur after its start Marker.")
+        ranges.append((start, end, action, start_marker, end_marker))
+
+    ranges.sort(key=lambda item: item[0])
+    previous_end = -1
+    for start, end, action, _, _ in ranges:
+        if start <= previous_end:
+            raise OpenSpecGraphError(f"Marker range for action {action!r} overlaps another Action range.")
+        previous_end = end
+
+    actions_by_index: dict[int, tuple[str, str | None, str | None]] = {}
+    range_metadata: list[dict[str, str]] = []
+    for start, end, action, start_marker, end_marker in ranges:
+        range_metadata.append({
+            "action": action,
+            "start_marker_id": start_marker["marker_id"],
+            "end_marker_id": end_marker["marker_id"],
+            "start_event_id": events[start].event_id,
+            "end_event_id": events[end].event_id,
+        })
+        for index in range(start, end + 1):
+            phase = "start" if index == start else "end" if index == end else None
+            marker_id = start_marker["marker_id"] if index == start else end_marker["marker_id"] if index == end else None
+            actions_by_index[index] = (action, phase, marker_id)
+
+    scoped_events = []
+    for index, event in enumerate(events):
+        context = actions_by_index.get(index)
+        if context is None:
+            continue
+        action, phase, marker_id = context
+        metadata = {**event.metadata, "marker_action": action}
+        if marker_id:
+            metadata.update({"marker_id": marker_id, "marker_phase": phase})
+        scoped_events.append(replace(
+            event,
+            event_type="marker" if marker_id else event.event_type,
+            metadata=metadata,
+        ))
+    return scoped_events, range_metadata
+
+
+def _bind_marker_events_to_actions(action_graph: ActionGraph, events: list[NormalizedEvent]) -> None:
+    events_by_action: dict[str, list[NormalizedEvent]] = {}
+    for event in events:
+        action = event.metadata.get("marker_action")
+        if action in _ACTION_IDS_BY_TYPE:
+            events_by_action.setdefault(str(action), []).append(event)
+
+    for action_node in action_graph.actions:
+        scoped_events = events_by_action.get(action_node.type, [])
+        if not scoped_events:
+            continue
+        action_node.event_ids = [event.event_id for event in scoped_events]
+        action_node.status = "failed" if any(_marker_event_is_error(event) for event in scoped_events) else "observed"
+        action_node.evidence.append({
+            "source": "marker_range",
+            "confidence": "high",
+            "reason": f"marker_range:{action_node.type}",
+            "event_ids": list(action_node.event_ids),
+        })
+
+
+def _marker_event_is_error(event: NormalizedEvent) -> bool:
+    if event.event_type == "error" or bool(event.metadata.get("is_error") or event.metadata.get("result_is_error")):
+        return True
+    return _has_error_text(event.text)
+
+
 def _find_session_task(session: dict[str, Any], task_id: str) -> dict[str, Any] | None:
     containers = [
         session.get("tasks"),
@@ -334,6 +524,7 @@ def _source_metadata(
     session_id: str | None,
     task_id: str | None,
     milestone_events: list[dict[str, Any]],
+    marker_ranges: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     return {
         "change": change,
@@ -344,6 +535,7 @@ def _source_metadata(
         "task_id": task_id,
         "milestone_event_count": len(milestone_events),
         "milestones": list(milestone_events),
+        "marker_ranges": list(marker_ranges or []),
     }
 
 
@@ -406,6 +598,23 @@ def _load_events(path: Path) -> list[dict[str, Any]]:
             continue
         if isinstance(value, dict):
             result.append(value)
+    return result
+
+
+def _load_markers(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    result = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise OpenSpecGraphError(f"Invalid marker JSON in {path}: {exc.msg}.") from exc
+        if not isinstance(value, dict):
+            raise OpenSpecGraphError(f"Invalid marker record in {path}.")
+        result.append(value)
     return result
 
 

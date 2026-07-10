@@ -4,24 +4,23 @@
       "action_id": "A1",
       "event_ids": [
         "main:2",
-        "main:3"
+        "main:3",
+        "main:4",
+        "main:5",
+        "main:6"
       ],
       "evidence": [
         {
           "confidence": "high",
           "event_ids": [
-            "main:2"
+            "main:2",
+            "main:3",
+            "main:4",
+            "main:5",
+            "main:6"
           ],
-          "reason": "edited_path:openspec/changes/add-symptom-routed-graph-attribution/proposal.md",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "high",
-          "event_ids": [
-            "main:3"
-          ],
-          "reason": "tool_result_of:edited_path:openspec/changes/add-symptom-routed-graph-attribution/proposal.md",
-          "source": "event_mapping"
+          "reason": "marker_range:proposal",
+          "source": "marker_range"
         }
       ],
       "expected_because": [
@@ -36,25 +35,24 @@
     {
       "action_id": "A2",
       "event_ids": [
-        "main:6",
-        "main:7"
+        "main:8",
+        "main:9",
+        "main:10",
+        "main:11",
+        "main:12"
       ],
       "evidence": [
         {
           "confidence": "high",
           "event_ids": [
-            "main:6"
+            "main:8",
+            "main:9",
+            "main:10",
+            "main:11",
+            "main:12"
           ],
-          "reason": "edited_path:openspec/changes/add-symptom-routed-graph-attribution/specs/action-graph-diagnosis/spec.md",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "high",
-          "event_ids": [
-            "main:7"
-          ],
-          "reason": "tool_result_of:edited_path:openspec/changes/add-symptom-routed-graph-attribution/specs/action-graph-diagnosis/spec.md",
-          "source": "event_mapping"
+          "reason": "marker_range:specs",
+          "source": "marker_range"
         }
       ],
       "expected_because": [
@@ -69,25 +67,24 @@
     {
       "action_id": "A3",
       "event_ids": [
-        "main:4",
-        "main:5"
+        "main:14",
+        "main:15",
+        "main:16",
+        "main:17",
+        "main:18"
       ],
       "evidence": [
         {
           "confidence": "high",
           "event_ids": [
-            "main:4"
+            "main:14",
+            "main:15",
+            "main:16",
+            "main:17",
+            "main:18"
           ],
-          "reason": "edited_path:openspec/changes/add-symptom-routed-graph-attribution/design.md",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "high",
-          "event_ids": [
-            "main:5"
-          ],
-          "reason": "tool_result_of:edited_path:openspec/changes/add-symptom-routed-graph-attribution/design.md",
-          "source": "event_mapping"
+          "reason": "marker_range:design",
+          "source": "marker_range"
         }
       ],
       "expected_because": [
@@ -102,25 +99,24 @@
     {
       "action_id": "A4",
       "event_ids": [
-        "main:8",
-        "main:9"
+        "main:20",
+        "main:21",
+        "main:22",
+        "main:23",
+        "main:24"
       ],
       "evidence": [
         {
           "confidence": "high",
           "event_ids": [
-            "main:8"
+            "main:20",
+            "main:21",
+            "main:22",
+            "main:23",
+            "main:24"
           ],
-          "reason": "edited_path:openspec/changes/add-symptom-routed-graph-attribution/tasks.md",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "high",
-          "event_ids": [
-            "main:9"
-          ],
-          "reason": "tool_result_of:edited_path:openspec/changes/add-symptom-routed-graph-attribution/tasks.md",
-          "source": "event_mapping"
+          "reason": "marker_range:tasks",
+          "source": "marker_range"
         }
       ],
       "expected_because": [
@@ -135,43 +131,32 @@
     {
       "action_id": "A5",
       "event_ids": [
-        "main:10:2",
-        "main:11:2",
-        "main:12",
-        "main:13"
+        "main:26",
+        "main:27",
+        "main:28",
+        "main:29",
+        "main:30",
+        "main:31",
+        "main:32",
+        "main:33",
+        "main:34"
       ],
       "evidence": [
         {
-          "confidence": "medium",
+          "confidence": "high",
           "event_ids": [
-            "main:10:2"
+            "main:26",
+            "main:27",
+            "main:28",
+            "main:29",
+            "main:30",
+            "main:31",
+            "main:32",
+            "main:33",
+            "main:34"
           ],
-          "reason": "event:file_change",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "medium",
-          "event_ids": [
-            "main:11:2"
-          ],
-          "reason": "tool_result_of:event:file_change",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "medium",
-          "event_ids": [
-            "main:12"
-          ],
-          "reason": "event:file_change",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "medium",
-          "event_ids": [
-            "main:13"
-          ],
-          "reason": "tool_result_of:event:file_change",
-          "source": "event_mapping"
+          "reason": "marker_range:apply",
+          "source": "marker_range"
         }
       ],
       "expected_because": [
@@ -186,43 +171,24 @@
     {
       "action_id": "A6",
       "event_ids": [
-        "main:14",
-        "main:15",
-        "main:16",
-        "main:17"
+        "main:36",
+        "main:37",
+        "main:38",
+        "main:39",
+        "main:40"
       ],
       "evidence": [
         {
           "confidence": "high",
           "event_ids": [
-            "main:14"
+            "main:36",
+            "main:37",
+            "main:38",
+            "main:39",
+            "main:40"
           ],
-          "reason": "command:openspec_validate",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "high",
-          "event_ids": [
-            "main:15"
-          ],
-          "reason": "tool_result_of:command:openspec_validate",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "medium",
-          "event_ids": [
-            "main:16"
-          ],
-          "reason": "command:test",
-          "source": "event_mapping"
-        },
-        {
-          "confidence": "medium",
-          "event_ids": [
-            "main:17"
-          ],
-          "reason": "tool_result_of:command:test",
-          "source": "event_mapping"
+          "reason": "marker_range:verify",
+          "source": "marker_range"
         }
       ],
       "expected_because": [
@@ -317,13 +283,57 @@
     }
   ],
   "metadata": {
-    "change": "add-symptom-routed-graph-attribution",
+    "change": "change-button-shape",
     "dataset_id": null,
+    "marker_ranges": [
+      {
+        "action": "proposal",
+        "end_event_id": "main:6",
+        "end_marker_id": "change-button-shape-proposal-end",
+        "start_event_id": "main:2",
+        "start_marker_id": "change-button-shape-proposal-start"
+      },
+      {
+        "action": "specs",
+        "end_event_id": "main:12",
+        "end_marker_id": "change-button-shape-specs-end",
+        "start_event_id": "main:8",
+        "start_marker_id": "change-button-shape-specs-start"
+      },
+      {
+        "action": "design",
+        "end_event_id": "main:18",
+        "end_marker_id": "change-button-shape-design-end",
+        "start_event_id": "main:14",
+        "start_marker_id": "change-button-shape-design-start"
+      },
+      {
+        "action": "tasks",
+        "end_event_id": "main:24",
+        "end_marker_id": "change-button-shape-tasks-end",
+        "start_event_id": "main:20",
+        "start_marker_id": "change-button-shape-tasks-start"
+      },
+      {
+        "action": "apply",
+        "end_event_id": "main:34",
+        "end_marker_id": "change-button-shape-apply-end",
+        "start_event_id": "main:26",
+        "start_marker_id": "change-button-shape-apply-start"
+      },
+      {
+        "action": "verify",
+        "end_event_id": "main:40",
+        "end_marker_id": "change-button-shape-verify-end",
+        "start_event_id": "main:36",
+        "start_marker_id": "change-button-shape-verify-start"
+      }
+    ],
     "milestone_event_count": 0,
     "milestones": [],
-    "session_id": "22222222-3333-4444-8555-666666666666",
-    "source_confidence": "low",
-    "source_kind": "session_full",
+    "session_id": "33333333-4444-4555-8666-777777777777",
+    "source_confidence": "high",
+    "source_kind": "marker_scoped_session",
     "task_id": null
   },
   "workflow": "openspec"

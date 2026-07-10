@@ -25,6 +25,8 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertIn("function highlightOpenSpecGraphEvents", html)
         self.assertIn('id="openspecGraphFeedbackInput"', html)
         self.assertIn('id="openspecGraphDiagnoseBtn"', html)
+        self.assertIn('class="btn ops-diagnosis-generate-btn"', html)
+        self.assertIn('.btn.ops-diagnosis-generate-btn { border-radius: 999px;', html)
         self.assertIn("function diagnoseOpenSpecGraph()", html)
         self.assertIn("/api/openspec-graph-diagnose", html)
         self.assertIn("function renderOpenSpecFeedbackDiagnosis", html)

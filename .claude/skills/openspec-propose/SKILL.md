@@ -115,6 +115,7 @@ After completing all artifacts, summarize:
   - These guide what you write, but should never appear in the output
 
 **Guardrails**
+- For each fixed artifact Action (`proposal`, `specs`, `design`, `tasks`), run a literal `ccwhat openspec-mark --change "<name>" --action "<action>" --phase start --marker-id "<name>-<action>-start"` Bash command immediately before writing it, then the matching `--phase end --marker-id "<name>-<action>-end"` command immediately after. Do not use shell variables or loops: the concrete marker id must appear in the recorded Bash command.
 - Create ALL artifacts needed for implementation (as defined by schema's `apply.requires`)
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum

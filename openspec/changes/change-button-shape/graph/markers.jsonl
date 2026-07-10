@@ -1,0 +1,12 @@
+{"marker_id": "change-button-shape-proposal-start", "change": "change-button-shape", "action": "proposal", "phase": "start", "timestamp": "2026-07-10T13:43:49.357906Z"}
+{"marker_id": "change-button-shape-proposal-end", "change": "change-button-shape", "action": "proposal", "phase": "end", "timestamp": "2026-07-10T13:44:14.484719Z"}
+{"marker_id": "change-button-shape-specs-start", "change": "change-button-shape", "action": "specs", "phase": "start", "timestamp": "2026-07-10T13:44:27.311193Z"}
+{"marker_id": "change-button-shape-specs-end", "change": "change-button-shape", "action": "specs", "phase": "end", "timestamp": "2026-07-10T13:45:04.240634Z"}
+{"marker_id": "change-button-shape-design-start", "change": "change-button-shape", "action": "design", "phase": "start", "timestamp": "2026-07-10T13:45:05.122894Z"}
+{"marker_id": "change-button-shape-design-end", "change": "change-button-shape", "action": "design", "phase": "end", "timestamp": "2026-07-10T13:45:39.062126Z"}
+{"marker_id": "change-button-shape-tasks-start", "change": "change-button-shape", "action": "tasks", "phase": "start", "timestamp": "2026-07-10T13:45:53.253030Z"}
+{"marker_id": "change-button-shape-tasks-end", "change": "change-button-shape", "action": "tasks", "phase": "end", "timestamp": "2026-07-10T13:46:37.033242Z"}
+{"marker_id": "change-button-shape-apply-start", "change": "change-button-shape", "action": "apply", "phase": "start", "timestamp": "2026-07-10T13:46:54.017591Z"}
+{"marker_id": "change-button-shape-apply-end", "change": "change-button-shape", "action": "apply", "phase": "end", "timestamp": "2026-07-10T13:47:38.063670Z"}
+{"marker_id": "change-button-shape-verify-start", "change": "change-button-shape", "action": "verify", "phase": "start", "timestamp": "2026-07-10T13:47:39.002536Z"}
+{"marker_id": "change-button-shape-verify-end", "change": "change-button-shape", "action": "verify", "phase": "end", "timestamp": "2026-07-10T13:48:16.273507Z"}

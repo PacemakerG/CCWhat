@@ -23,6 +23,7 @@ def openspec_graph() -> None:
 @click.option("--dataset-id", default=None, help="Dataset id from the local registry, or a Dataset directory/tar path.")
 @click.option("--session-id", default=None, help="Agent session id used to build step-level evidence.")
 @click.option("--projects-dir", type=click.Path(path_type=Path), default=None, help="Agent projects directory for --session-id lookup.")
+@click.option("--allow-full-session", is_flag=True, help="Use legacy full-Session evidence instead of required Action Markers.")
 @click.option("--success/--failure", default=None, help="Success flag for validation/archive events.")
 @click.option("--note", default=None, help="Optional event note.")
 def sync(
@@ -34,6 +35,7 @@ def sync(
     dataset_id: str | None,
     session_id: str | None,
     projects_dir: Path | None,
+    allow_full_session: bool,
     success: bool | None,
     note: str | None,
 ) -> None:
@@ -48,6 +50,7 @@ def sync(
             dataset_id=dataset_id,
             session_id=session_id,
             projects_dir=projects_dir,
+            allow_full_session=allow_full_session,
             success=success,
             note=note,
             cwd=Path.cwd(),

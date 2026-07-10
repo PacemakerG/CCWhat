@@ -844,7 +844,7 @@ class ViewerBackend:
             return status, graph_payload
         metadata = graph_payload.get("eventGraph", {}).get("metadata", {})
         source_kind = str(metadata.get("source_kind") or "")
-        if source_kind not in {"session_full", "session_task"}:
+        if source_kind not in {"session_full", "session_task", "marker_scoped_session"}:
             return 409, {
                 "ok": False,
                 "error": "feedback diagnosis requires a Session-bound Event Graph",

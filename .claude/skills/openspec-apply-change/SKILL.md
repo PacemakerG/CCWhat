@@ -66,6 +66,8 @@ Implement tasks from an OpenSpec change.
 
 6. **Implement tasks (loop until done or blocked)**
 
+   Before the first implementation task, run `ccwhat openspec-mark --change "<name>" --action apply --phase start --marker-id "<name>-apply-start"`.
+
    For each pending task:
    - Show which task is being worked on
    - Make the code changes required
@@ -84,6 +86,8 @@ Implement tasks from an OpenSpec change.
    - User interrupts
 
 7. **On completion or pause, show status**
+
+   After implementation tasks are complete and before final validation, run `ccwhat openspec-mark --change "<name>" --action apply --phase end --marker-id "<name>-apply-end"` and `ccwhat openspec-mark --change "<name>" --action verify --phase start --marker-id "<name>-verify-start"`. After final validation, run `ccwhat openspec-mark --change "<name>" --action verify --phase end --marker-id "<name>-verify-end"`. Use literal marker ids, not shell variables.
 
    Display:
    - Tasks completed this session

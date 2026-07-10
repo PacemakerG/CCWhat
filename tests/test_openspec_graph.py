@@ -12,7 +12,7 @@ from unittest import mock
 from click.testing import CliRunner
 
 from ccwhat.cli import cli
-from ccwhat.openspec_graph import sync_openspec_graph
+from ccwhat.openspec_graph import sync_openspec_graph, write_openspec_marker
 from viewer.server import _load_openspec_graph_response, create_app
 
 
@@ -85,6 +85,30 @@ def _write_session(projects_dir: Path, session_id: str = "session-step-001") -> 
     )
 
 
+def _write_marked_session(projects_dir: Path, session_id: str = "session-marker-001") -> None:
+    project = projects_dir / "demo-project"
+    project.mkdir(parents=True)
+
+    def bash(tool_id: str, timestamp: str, command: str) -> dict:
+        return {
+            "type": "assistant",
+            "timestamp": timestamp,
+            "message": {"content": [{"type": "tool_use", "id": tool_id, "name": "Bash", "input": {"command": command}}]},
+        }
+
+    rows = [
+        {"type": "user", "timestamp": "2026-07-09T00:00:01Z", "message": {"content": [{"type": "text", "text": "Unrelated discussion."}]}},
+        bash("toolu_apply_start", "2026-07-09T00:00:02Z", "ccwhat openspec-mark --change demo-change --action apply --phase start --marker-id demo-apply-start"),
+        {"type": "assistant", "timestamp": "2026-07-09T00:00:03Z", "message": {"content": [{"type": "tool_use", "id": "toolu_apply", "name": "Edit", "input": {"file_path": "ccwhat/foo.py", "old_string": "old", "new_string": "new"}}]}},
+        bash("toolu_apply_end", "2026-07-09T00:00:04Z", "ccwhat openspec-mark --change demo-change --action apply --phase end --marker-id demo-apply-end"),
+        {"type": "user", "timestamp": "2026-07-09T00:00:05Z", "message": {"content": [{"type": "text", "text": "Another change starts now."}]}},
+    ]
+    (project / f"{session_id}.jsonl").write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+
 class OpenSpecGraphSyncTests(unittest.TestCase):
     def test_sync_generates_graph_files_inside_change(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -113,16 +137,18 @@ class OpenSpecGraphSyncTests(unittest.TestCase):
             self.assertEqual(actions["apply"]["status"], "observed")
             self.assertEqual(actions["verify"]["status"], "observed")
 
-    def test_sync_uses_session_step_events_when_bound(self) -> None:
+    def test_sync_uses_marker_scoped_session_events_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             change = _make_change(root)
             projects_dir = root / "projects"
-            _write_session(projects_dir)
+            _write_marked_session(projects_dir)
+            write_openspec_marker(change="demo-change", action="apply", phase="start", marker_id="demo-apply-start", cwd=root)
+            write_openspec_marker(change="demo-change", action="apply", phase="end", marker_id="demo-apply-end", cwd=root)
 
             sync_openspec_graph(
                 change="demo-change",
-                session_id="session-step-001",
+                session_id="session-marker-001",
                 projects_dir=projects_dir,
                 cwd=root,
             )
@@ -132,12 +158,76 @@ class OpenSpecGraphSyncTests(unittest.TestCase):
             node_types = {node["type"] for node in event_graph["nodes"]}
             actions = {action["type"]: action for action in action_graph["actions"]}
 
-            self.assertEqual(event_graph["metadata"]["source_kind"], "session_full")
+            self.assertEqual(event_graph["metadata"]["source_kind"], "marker_scoped_session")
+            self.assertEqual(event_graph["metadata"]["source_confidence"], "high")
             self.assertIn("file_edit", node_types)
-            self.assertIn("command", node_types)
-            self.assertEqual(actions["proposal"]["status"], "observed")
+            self.assertIn("marker", node_types)
+            self.assertNotIn("user_message", node_types)
+            self.assertEqual(actions["proposal"]["status"], "not_observed")
             self.assertEqual(actions["apply"]["status"], "observed")
-            self.assertEqual(actions["verify"]["status"], "observed")
+            self.assertEqual(actions["verify"]["status"], "not_observed")
+
+    def test_sync_requires_markers_unless_full_session_is_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _make_change(root)
+            projects_dir = root / "projects"
+            _write_session(projects_dir)
+
+            with self.assertRaisesRegex(ValueError, "No markers found"):
+                sync_openspec_graph(
+                    change="demo-change",
+                    session_id="session-step-001",
+                    projects_dir=projects_dir,
+                    cwd=root,
+                )
+
+            sync_openspec_graph(
+                change="demo-change",
+                session_id="session-step-001",
+                projects_dir=projects_dir,
+                allow_full_session=True,
+                cwd=root,
+            )
+            event_graph = json.loads((root / "openspec/changes/demo-change/graph/event_graph.json").read_text(encoding="utf-8"))
+            self.assertEqual(event_graph["metadata"]["source_kind"], "session_full")
+
+    def test_sync_rejects_incomplete_marker_pairs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _make_change(root)
+            projects_dir = root / "projects"
+            _write_marked_session(projects_dir)
+            write_openspec_marker(change="demo-change", action="apply", phase="start", marker_id="demo-apply-start", cwd=root)
+
+            with self.assertRaisesRegex(ValueError, "incomplete Marker boundaries"):
+                sync_openspec_graph(
+                    change="demo-change",
+                    session_id="session-marker-001",
+                    projects_dir=projects_dir,
+                    cwd=root,
+                )
+
+    def test_marker_cli_writes_one_unique_boundary_record(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = _make_change(root)
+            previous = Path.cwd()
+            try:
+                os.chdir(root)
+                result = CliRunner().invoke(cli, [
+                    "openspec-mark", "--change", "demo-change", "--action", "apply", "--phase", "start", "--marker-id", "demo-apply-start",
+                ])
+                duplicate = CliRunner().invoke(cli, [
+                    "openspec-mark", "--change", "demo-change", "--action", "apply", "--phase", "start", "--marker-id", "other-start",
+                ])
+            finally:
+                os.chdir(previous)
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertNotEqual(duplicate.exit_code, 0)
+            markers = [json.loads(line) for line in (change / "graph/markers.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(markers[0]["marker_id"], "demo-apply-start")
 
     def test_cli_sync_generates_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -184,13 +274,15 @@ class OpenSpecGraphSyncTests(unittest.TestCase):
             self.assertEqual(status, 400)
             self.assertFalse(payload["ok"])
 
-    def test_feedback_diagnosis_reuses_analyzer_and_validates_graph_refs(self) -> None:
-        session_id = "session-step-000000001"
+    def test_feedback_diagnosis_accepts_marker_scoped_graphs(self) -> None:
+        session_id = "session-marker-0000001"
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             change = _make_change(root)
             projects_dir = root / "projects"
-            _write_session(projects_dir, session_id=session_id)
+            _write_marked_session(projects_dir, session_id=session_id)
+            write_openspec_marker(change="demo-change", action="apply", phase="start", marker_id="demo-apply-start", cwd=root)
+            write_openspec_marker(change="demo-change", action="apply", phase="end", marker_id="demo-apply-end", cwd=root)
             sync_openspec_graph(
                 change="demo-change",
                 session_id=session_id,
