@@ -1,7 +1,11 @@
 {
+  "workflow": "openspec",
   "actions": [
     {
-      "action_id": "A1",
+      "action_id": "proposal-1",
+      "type": "proposal",
+      "label": "Proposal #1",
+      "status": "observed",
       "event_ids": [
         "main:2",
         "main:3",
@@ -9,31 +13,32 @@
         "main:5",
         "main:6"
       ],
+      "required": false,
+      "expected_because": [],
       "evidence": [
         {
+          "source": "marker_range",
           "confidence": "high",
-          "event_ids": [
-            "main:2",
-            "main:3",
-            "main:4",
-            "main:5",
-            "main:6"
-          ],
-          "reason": "marker_range:proposal",
-          "source": "marker_range"
+          "start_marker_id": "change-button-shape-proposal-start",
+          "end_marker_id": "change-button-shape-proposal-end"
         }
       ],
-      "expected_because": [
-        "openspec_workflow_template"
-      ],
-      "label": "Proposal",
-      "required": true,
-      "status": "observed",
       "suspicion_score": 0,
-      "type": "proposal"
+      "ordinal": 1,
+      "started_at": "2026-07-10T13:00:01Z",
+      "ended_at": "2026-07-10T13:00:05Z",
+      "marker_range": {
+        "start_marker_id": "change-button-shape-proposal-start",
+        "end_marker_id": "change-button-shape-proposal-end",
+        "start_event_id": "main:2",
+        "end_event_id": "main:6"
+      }
     },
     {
-      "action_id": "A2",
+      "action_id": "specs-1",
+      "type": "specs",
+      "label": "Specs #1",
+      "status": "observed",
       "event_ids": [
         "main:8",
         "main:9",
@@ -41,31 +46,32 @@
         "main:11",
         "main:12"
       ],
+      "required": false,
+      "expected_because": [],
       "evidence": [
         {
+          "source": "marker_range",
           "confidence": "high",
-          "event_ids": [
-            "main:8",
-            "main:9",
-            "main:10",
-            "main:11",
-            "main:12"
-          ],
-          "reason": "marker_range:specs",
-          "source": "marker_range"
+          "start_marker_id": "change-button-shape-specs-start",
+          "end_marker_id": "change-button-shape-specs-end"
         }
       ],
-      "expected_because": [
-        "openspec_workflow_template"
-      ],
-      "label": "Specs",
-      "required": true,
-      "status": "observed",
       "suspicion_score": 0,
-      "type": "specs"
+      "ordinal": 1,
+      "started_at": "2026-07-10T13:00:07Z",
+      "ended_at": "2026-07-10T13:00:11Z",
+      "marker_range": {
+        "start_marker_id": "change-button-shape-specs-start",
+        "end_marker_id": "change-button-shape-specs-end",
+        "start_event_id": "main:8",
+        "end_event_id": "main:12"
+      }
     },
     {
-      "action_id": "A3",
+      "action_id": "design-1",
+      "type": "design",
+      "label": "Design #1",
+      "status": "observed",
       "event_ids": [
         "main:14",
         "main:15",
@@ -73,31 +79,32 @@
         "main:17",
         "main:18"
       ],
+      "required": false,
+      "expected_because": [],
       "evidence": [
         {
+          "source": "marker_range",
           "confidence": "high",
-          "event_ids": [
-            "main:14",
-            "main:15",
-            "main:16",
-            "main:17",
-            "main:18"
-          ],
-          "reason": "marker_range:design",
-          "source": "marker_range"
+          "start_marker_id": "change-button-shape-design-start",
+          "end_marker_id": "change-button-shape-design-end"
         }
       ],
-      "expected_because": [
-        "openspec_workflow_template"
-      ],
-      "label": "Design",
-      "required": true,
-      "status": "observed",
       "suspicion_score": 0,
-      "type": "design"
+      "ordinal": 1,
+      "started_at": "2026-07-10T13:00:13Z",
+      "ended_at": "2026-07-10T13:00:17Z",
+      "marker_range": {
+        "start_marker_id": "change-button-shape-design-start",
+        "end_marker_id": "change-button-shape-design-end",
+        "start_event_id": "main:14",
+        "end_event_id": "main:18"
+      }
     },
     {
-      "action_id": "A4",
+      "action_id": "tasks-1",
+      "type": "tasks",
+      "label": "Tasks #1",
+      "status": "observed",
       "event_ids": [
         "main:20",
         "main:21",
@@ -105,31 +112,32 @@
         "main:23",
         "main:24"
       ],
+      "required": false,
+      "expected_because": [],
       "evidence": [
         {
+          "source": "marker_range",
           "confidence": "high",
-          "event_ids": [
-            "main:20",
-            "main:21",
-            "main:22",
-            "main:23",
-            "main:24"
-          ],
-          "reason": "marker_range:tasks",
-          "source": "marker_range"
+          "start_marker_id": "change-button-shape-tasks-start",
+          "end_marker_id": "change-button-shape-tasks-end"
         }
       ],
-      "expected_because": [
-        "openspec_workflow_template"
-      ],
-      "label": "Tasks",
-      "required": true,
-      "status": "observed",
       "suspicion_score": 0,
-      "type": "tasks"
+      "ordinal": 1,
+      "started_at": "2026-07-10T13:00:19Z",
+      "ended_at": "2026-07-10T13:00:23Z",
+      "marker_range": {
+        "start_marker_id": "change-button-shape-tasks-start",
+        "end_marker_id": "change-button-shape-tasks-end",
+        "start_event_id": "main:20",
+        "end_event_id": "main:24"
+      }
     },
     {
-      "action_id": "A5",
+      "action_id": "apply-1",
+      "type": "apply",
+      "label": "Apply #1",
+      "status": "observed",
       "event_ids": [
         "main:26",
         "main:27",
@@ -141,35 +149,32 @@
         "main:33",
         "main:34"
       ],
+      "required": false,
+      "expected_because": [],
       "evidence": [
         {
+          "source": "marker_range",
           "confidence": "high",
-          "event_ids": [
-            "main:26",
-            "main:27",
-            "main:28",
-            "main:29",
-            "main:30",
-            "main:31",
-            "main:32",
-            "main:33",
-            "main:34"
-          ],
-          "reason": "marker_range:apply",
-          "source": "marker_range"
+          "start_marker_id": "change-button-shape-apply-start",
+          "end_marker_id": "change-button-shape-apply-end"
         }
       ],
-      "expected_because": [
-        "openspec_workflow_template"
-      ],
-      "label": "Apply",
-      "required": true,
-      "status": "observed",
       "suspicion_score": 0,
-      "type": "apply"
+      "ordinal": 1,
+      "started_at": "2026-07-10T13:00:25Z",
+      "ended_at": "2026-07-10T13:00:31Z",
+      "marker_range": {
+        "start_marker_id": "change-button-shape-apply-start",
+        "end_marker_id": "change-button-shape-apply-end",
+        "start_event_id": "main:26",
+        "end_event_id": "main:34"
+      }
     },
     {
-      "action_id": "A6",
+      "action_id": "verify-1",
+      "type": "verify",
+      "label": "Verify #1",
+      "status": "observed",
       "event_ids": [
         "main:36",
         "main:37",
@@ -177,164 +182,129 @@
         "main:39",
         "main:40"
       ],
+      "required": false,
+      "expected_because": [],
       "evidence": [
         {
+          "source": "marker_range",
           "confidence": "high",
-          "event_ids": [
-            "main:36",
-            "main:37",
-            "main:38",
-            "main:39",
-            "main:40"
-          ],
-          "reason": "marker_range:verify",
-          "source": "marker_range"
+          "start_marker_id": "change-button-shape-verify-start",
+          "end_marker_id": "change-button-shape-verify-end"
         }
       ],
-      "expected_because": [
-        "openspec_workflow_template"
-      ],
-      "label": "Verify",
-      "required": true,
-      "status": "observed",
       "suspicion_score": 0,
-      "type": "verify"
-    },
-    {
-      "action_id": "A7",
-      "event_ids": [],
-      "evidence": [],
-      "expected_because": [
-        "openspec_workflow_template"
-      ],
-      "label": "Archive",
-      "required": true,
-      "status": "not_observed",
-      "suspicion_score": 0,
-      "type": "archive"
+      "ordinal": 1,
+      "started_at": "2026-07-10T13:00:33Z",
+      "ended_at": "2026-07-10T13:00:37Z",
+      "marker_range": {
+        "start_marker_id": "change-button-shape-verify-start",
+        "end_marker_id": "change-button-shape-verify-end",
+        "start_event_id": "main:36",
+        "end_event_id": "main:40"
+      }
     }
   ],
   "edges": [
     {
-      "confidence": 1.0,
       "edge_id": "AE001",
-      "evidence": [
-        "openspec_workflow_template"
-      ],
-      "from": "A1",
-      "required": true,
-      "to": "A2",
-      "type": "workflow_expected"
+      "from": "proposal-1",
+      "to": "specs-1",
+      "type": "next",
+      "confidence": 1.0,
+      "evidence": [],
+      "required": false
     },
     {
-      "confidence": 1.0,
       "edge_id": "AE002",
-      "evidence": [
-        "openspec_workflow_template"
-      ],
-      "from": "A2",
-      "required": true,
-      "to": "A3",
-      "type": "workflow_expected"
+      "from": "specs-1",
+      "to": "design-1",
+      "type": "next",
+      "confidence": 1.0,
+      "evidence": [],
+      "required": false
     },
     {
-      "confidence": 1.0,
       "edge_id": "AE003",
-      "evidence": [
-        "openspec_workflow_template"
-      ],
-      "from": "A3",
-      "required": true,
-      "to": "A4",
-      "type": "workflow_expected"
+      "from": "design-1",
+      "to": "tasks-1",
+      "type": "next",
+      "confidence": 1.0,
+      "evidence": [],
+      "required": false
     },
     {
-      "confidence": 1.0,
       "edge_id": "AE004",
-      "evidence": [
-        "openspec_workflow_template"
-      ],
-      "from": "A4",
-      "required": true,
-      "to": "A5",
-      "type": "workflow_expected"
+      "from": "tasks-1",
+      "to": "apply-1",
+      "type": "next",
+      "confidence": 1.0,
+      "evidence": [],
+      "required": false
     },
     {
-      "confidence": 1.0,
       "edge_id": "AE005",
-      "evidence": [
-        "openspec_workflow_template"
-      ],
-      "from": "A5",
-      "required": true,
-      "to": "A6",
-      "type": "workflow_expected"
-    },
-    {
+      "from": "apply-1",
+      "to": "verify-1",
+      "type": "next",
       "confidence": 1.0,
-      "edge_id": "AE006",
-      "evidence": [
-        "openspec_workflow_template"
-      ],
-      "from": "A6",
-      "required": true,
-      "to": "A7",
-      "type": "workflow_expected"
+      "evidence": [],
+      "required": false
     }
   ],
   "metadata": {
     "change": "change-button-shape",
-    "dataset_id": null,
+    "source_kind": "marker_scoped_session",
+    "source_confidence": "high",
+    "session_id": "33333333-4444-4555-8666-777777777777",
     "marker_ranges": [
       {
         "action": "proposal",
-        "end_event_id": "main:6",
+        "action_id": "proposal-1",
+        "start_marker_id": "change-button-shape-proposal-start",
         "end_marker_id": "change-button-shape-proposal-end",
         "start_event_id": "main:2",
-        "start_marker_id": "change-button-shape-proposal-start"
+        "end_event_id": "main:6"
       },
       {
         "action": "specs",
-        "end_event_id": "main:12",
+        "action_id": "specs-1",
+        "start_marker_id": "change-button-shape-specs-start",
         "end_marker_id": "change-button-shape-specs-end",
         "start_event_id": "main:8",
-        "start_marker_id": "change-button-shape-specs-start"
+        "end_event_id": "main:12"
       },
       {
         "action": "design",
-        "end_event_id": "main:18",
+        "action_id": "design-1",
+        "start_marker_id": "change-button-shape-design-start",
         "end_marker_id": "change-button-shape-design-end",
         "start_event_id": "main:14",
-        "start_marker_id": "change-button-shape-design-start"
+        "end_event_id": "main:18"
       },
       {
         "action": "tasks",
-        "end_event_id": "main:24",
+        "action_id": "tasks-1",
+        "start_marker_id": "change-button-shape-tasks-start",
         "end_marker_id": "change-button-shape-tasks-end",
         "start_event_id": "main:20",
-        "start_marker_id": "change-button-shape-tasks-start"
+        "end_event_id": "main:24"
       },
       {
         "action": "apply",
-        "end_event_id": "main:34",
+        "action_id": "apply-1",
+        "start_marker_id": "change-button-shape-apply-start",
         "end_marker_id": "change-button-shape-apply-end",
         "start_event_id": "main:26",
-        "start_marker_id": "change-button-shape-apply-start"
+        "end_event_id": "main:34"
       },
       {
         "action": "verify",
-        "end_event_id": "main:40",
+        "action_id": "verify-1",
+        "start_marker_id": "change-button-shape-verify-start",
         "end_marker_id": "change-button-shape-verify-end",
         "start_event_id": "main:36",
-        "start_marker_id": "change-button-shape-verify-start"
+        "end_event_id": "main:40"
       }
-    ],
-    "milestone_event_count": 0,
-    "milestones": [],
-    "session_id": "33333333-4444-4555-8666-777777777777",
-    "source_confidence": "high",
-    "source_kind": "marker_scoped_session",
-    "task_id": null
-  },
-  "workflow": "openspec"
+    ]
+  }
 }

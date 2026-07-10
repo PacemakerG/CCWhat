@@ -1,63 +1,65 @@
 {
-  "causal_chains": [],
-  "metadata": {
-    "change": "change-button-shape",
-    "dataset_id": null,
-    "marker_ranges": [
-      {
-        "action": "proposal",
-        "end_event_id": "main:6",
-        "end_marker_id": "change-button-shape-proposal-end",
-        "start_event_id": "main:2",
-        "start_marker_id": "change-button-shape-proposal-start"
-      },
-      {
-        "action": "specs",
-        "end_event_id": "main:12",
-        "end_marker_id": "change-button-shape-specs-end",
-        "start_event_id": "main:8",
-        "start_marker_id": "change-button-shape-specs-start"
-      },
-      {
-        "action": "design",
-        "end_event_id": "main:18",
-        "end_marker_id": "change-button-shape-design-end",
-        "start_event_id": "main:14",
-        "start_marker_id": "change-button-shape-design-start"
-      },
-      {
-        "action": "tasks",
-        "end_event_id": "main:24",
-        "end_marker_id": "change-button-shape-tasks-end",
-        "start_event_id": "main:20",
-        "start_marker_id": "change-button-shape-tasks-start"
-      },
-      {
-        "action": "apply",
-        "end_event_id": "main:34",
-        "end_marker_id": "change-button-shape-apply-end",
-        "start_event_id": "main:26",
-        "start_marker_id": "change-button-shape-apply-start"
-      },
-      {
-        "action": "verify",
-        "end_event_id": "main:40",
-        "end_marker_id": "change-button-shape-verify-end",
-        "start_event_id": "main:36",
-        "start_marker_id": "change-button-shape-verify-start"
-      }
-    ],
-    "milestone_event_count": 0,
-    "milestones": [],
-    "session_id": "33333333-4444-4555-8666-777777777777",
-    "source_confidence": "high",
-    "source_kind": "marker_scoped_session",
-    "task_id": null
-  },
-  "missing_evidence": [],
+  "session_id": "33333333-4444-4555-8666-777777777777",
+  "workflow": "openspec",
   "status": "awaiting_feedback",
   "summary": "Session graph is ready for user feedback diagnosis.",
   "symptoms": [],
-  "task_id": "33333333-4444-4555-8666-777777777777",
-  "workflow": "openspec"
+  "causal_chains": [],
+  "missing_evidence": [],
+  "metadata": {
+    "change": "change-button-shape",
+    "source_kind": "marker_scoped_session",
+    "source_confidence": "high",
+    "session_id": "33333333-4444-4555-8666-777777777777",
+    "marker_ranges": [
+      {
+        "action": "proposal",
+        "action_id": "proposal-1",
+        "start_marker_id": "change-button-shape-proposal-start",
+        "end_marker_id": "change-button-shape-proposal-end",
+        "start_event_id": "main:2",
+        "end_event_id": "main:6"
+      },
+      {
+        "action": "specs",
+        "action_id": "specs-1",
+        "start_marker_id": "change-button-shape-specs-start",
+        "end_marker_id": "change-button-shape-specs-end",
+        "start_event_id": "main:8",
+        "end_event_id": "main:12"
+      },
+      {
+        "action": "design",
+        "action_id": "design-1",
+        "start_marker_id": "change-button-shape-design-start",
+        "end_marker_id": "change-button-shape-design-end",
+        "start_event_id": "main:14",
+        "end_event_id": "main:18"
+      },
+      {
+        "action": "tasks",
+        "action_id": "tasks-1",
+        "start_marker_id": "change-button-shape-tasks-start",
+        "end_marker_id": "change-button-shape-tasks-end",
+        "start_event_id": "main:20",
+        "end_event_id": "main:24"
+      },
+      {
+        "action": "apply",
+        "action_id": "apply-1",
+        "start_marker_id": "change-button-shape-apply-start",
+        "end_marker_id": "change-button-shape-apply-end",
+        "start_event_id": "main:26",
+        "end_event_id": "main:34"
+      },
+      {
+        "action": "verify",
+        "action_id": "verify-1",
+        "start_marker_id": "change-button-shape-verify-start",
+        "end_marker_id": "change-button-shape-verify-end",
+        "start_event_id": "main:36",
+        "end_event_id": "main:40"
+      }
+    ]
+  }
 }

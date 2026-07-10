@@ -7139,14 +7139,10 @@ function renderPointLineGraph(title, nodes, edges, kind) {
       positions[node.id] = { x: 80 + i * 150, y: 78 };
     });
   } else {
-    const cols = Math.min(4, Math.max(1, nodes.length));
-    const tileW = 180;
-    const tileH = 112;
-    const rows = Math.ceil(nodes.length / cols);
-    width = Math.max(720, 80 + cols * tileW);
-    height = Math.max(190, 55 + rows * tileH);
+    width = Math.max(720, 120 + nodes.length * 150);
+    height = 180;
     nodes.forEach((node, i) => {
-      positions[node.id] = { x: 80 + (i % cols) * tileW, y: 64 + Math.floor(i / cols) * tileH };
+      positions[node.id] = { x: 80 + i * 150, y: 78 };
     });
   }
 

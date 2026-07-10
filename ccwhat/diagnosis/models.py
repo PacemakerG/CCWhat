@@ -65,9 +65,19 @@ class ActionNode:
     expected_because: list[str] = field(default_factory=list)
     evidence: list[dict[str, Any]] = field(default_factory=list)
     suspicion_score: int = 0
+    ordinal: int | None = None
+    started_at: str | None = None
+    ended_at: str | None = None
+    marker_range: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        result = asdict(self)
+        for key in ("ordinal", "started_at", "ended_at"):
+            if result[key] is None:
+                result.pop(key)
+        if not result["marker_range"]:
+            result.pop("marker_range")
+        return result
 
 
 @dataclass
