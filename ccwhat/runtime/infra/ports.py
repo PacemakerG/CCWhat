@@ -8,12 +8,6 @@ import socket
 LOCALHOST = "127.0.0.1"
 
 
-def port_in_use(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(0.3)
-        return sock.connect_ex((LOCALHOST, port)) == 0
-
-
 def port_bind_error(port: int) -> OSError | None:
     """Return the bind error for localhost:port, or None if it is bindable."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:

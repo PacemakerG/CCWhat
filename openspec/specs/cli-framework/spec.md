@@ -17,7 +17,7 @@ Define the command-line entry points, subcommand routing, and package installati
 - **THEN** 系统打印错误信息提示未知子命令，并展示帮助，退出码为非 0
 
 ### Requirement: Subcommand routing
-CLI 框架 SHALL 使用 `click.group()` 实现插件式子命令注册，每个子命令在独立模块中定义并通过 `cli.add_command()` 注册。已注册的子命令包括 `proxy`、`start-mc`、`clear-req-resp` 和 `web-server`。
+CLI 框架 SHALL 使用 `click.group()` 实现子命令注册。现行入口包括顶层 `ccwhat -- <agent>`、`proxy`、`clear-req-resp` 和 `web`。
 
 #### Scenario: Subcommand help
 - **WHEN** 用户执行 `deep-ai-analysis proxy --help`
@@ -26,10 +26,6 @@ CLI 框架 SHALL 使用 `click.group()` 实现插件式子命令注册，每个�
 #### Scenario: No subcommand provided
 - **WHEN** 用户执行 `deep-ai-analysis`（不带任何子命令）
 - **THEN** 系统打印全局帮助信息，退出码为 0
-
-#### Scenario: start-mc subcommand available
-- **WHEN** 用户执行 `deep-ai-analysis --help`
-- **THEN** 帮助信息中包含 `start-mc` 子命令及其简要描述
 
 #### Scenario: clear-req-resp subcommand available
 - **WHEN** 用户执行 `deep-ai-analysis --help`
@@ -91,4 +87,3 @@ ccwhat CLI SHALL 对 Windows 常见系统限制提供可执行诊断信息。
 - **WHEN** CLI 遇到 Windows `WinError 10013`
 - **THEN** 错误信息 SHALL 提到 Windows TCP excluded port range
 - **AND** 错误信息 SHALL 给出 `netsh interface ipv4 show excludedportrange protocol=tcp` 检查命令
-

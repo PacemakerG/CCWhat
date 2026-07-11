@@ -319,12 +319,6 @@ class RunCommandTests(unittest.TestCase):
         self.assertEqual(started["paths"], [])
         self.assertIn("starting proxy without payload recording", result.output)
 
-    def test_deprecated_start_mc_prints_migration_hint(self) -> None:
-        from ccwhat.commands.start_mc import start_mc
-        result = self.runner.invoke(start_mc, [])
-        self.assertIn("deprecated", result.output.lower())
-        self.assertIn("ccwhat -- claude", result.output)
-
     def test_top_level_passthrough_invokes_run_with_claude(self) -> None:
         captured_args: list[str] = []
 

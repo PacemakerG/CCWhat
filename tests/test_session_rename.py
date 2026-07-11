@@ -424,70 +424,17 @@ class TestViewerRenameAPI(unittest.TestCase):
     """Test POST /api/session/<sessionId>/rename endpoint."""
 
     def _make_server(self, adapter):
-        """Create a test server with the given adapter."""
-        from http.server import HTTPServer
-        from viewer.server import create_server
-        server = create_server(
-            port=0,  # auto-assign
+        from fastapi.testclient import TestClient
+        from viewer.server import create_app
+        return TestClient(create_app(
             projects_dir=Path("/tmp"),
             logs_dir=Path("/tmp"),
             adapter=adapter,
-        )
-        return server
+        ))
 
     def _request(self, server, method, path, body=None):
-        """Send a request to the server handler directly."""
-        import io
-        from http.server import BaseHTTPRequestHandler
-        from unittest.mock import MagicMock
-
-        handler_class = server.RequestHandlerClass
-
-        # Build the raw HTTP request
-        body_bytes = json.dumps(body).encode() if body else b""
-
-        # rfile should contain only the body (headers are parsed separately)
-        rfile = io.BytesIO(body_bytes)
-        wfile = io.BytesIO()
-
-        # Mock the connection
-        handler = handler_class.__new__(handler_class)
-        handler.rfile = rfile
-        handler.wfile = wfile
-        handler.requestline = f"{method} {path} HTTP/1.1"
-        handler.command = method
-        handler.path = path
-        handler.request_version = "HTTP/1.1"
-        handler.close_connection = True
-        handler.client_address = ("127.0.0.1", 0)
-        handler.server = server
-        handler.log_request = lambda *a, **kw: None
-        handler.log_error = lambda *a, **kw: None
-
-        # Parse headers properly
-        import email.parser
-        header_text = f"Content-Type: application/json\r\nContent-Length: {len(body_bytes)}\r\n"
-        handler.headers = email.parser.Parser().parsestr(header_text)
-
-        # Call the handler
-        if method == "POST":
-            handler.do_POST()
-        elif method == "GET":
-            handler.do_GET()
-
-        # Parse response
-        wfile.seek(0)
-        response_data = wfile.read().decode("utf-8", errors="replace")
-        # Find JSON body
-        parts = response_data.split("\r\n\r\n", 1)
-        status_line = parts[0].split("\r\n")[0] if parts else ""
-        status_code = int(status_line.split(" ")[1]) if " " in status_line else 500
-        body_text = parts[1] if len(parts) > 1 else ""
-        try:
-            result = json.loads(body_text)
-        except json.JSONDecodeError:
-            result = {"raw": body_text}
-        return status_code, result
+        response = server.request(method, path, json=body)
+        return response.status_code, response.json()
 
     def test_rename_codex_success(self):
         with TemporaryDirectory() as tmp:

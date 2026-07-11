@@ -189,8 +189,6 @@ _REGISTRY = {
 }
 ```
 
-另外 `_register_candidate()` 注册了一个 **codex 回退模式**：改用 `--output-last-message <tmpfile>` 把结果写到临时文件，用 `parse_last_message_file()` 解析——这是 codex 的备用方案。
-
 ---
 
 ### Agent 解析优先级（`analyzer.py:101-122`）
@@ -319,27 +317,10 @@ viewer/server.py:            report_store[report_id] = {
 
 ---
 
-### 回退链路（`analyzer.py:258-314`）
+### 失败处理
 
-当 `primary` 失败时（不是 "analyzer_not_found"），自动尝试 `get_candidates()` 返回的候选：
-
-```
-primary: claude -p -              → 失败（超时/返回非0）
-   │
-   ▼
-candidate[0]: codex --output-last-message <tmpfile> ...  → 成功则返回
-   │                                                失败
-   ▼
-candidate[1]: (无更多候选)
-   │
-   ▼
-所有都失败 → 抛 AnalysisError
-   │
-   ▼
-pipeline.py 的 except AnalysisError:
-  _fallback_diagnosis_markdown()  ← 纯本地数据拼一份降级报告
-  不依赖任何 LLM，只用 core.py 产出的阶段/工具/Agent 数据
-```
+每个 Analyzer 只执行注册表中的主命令。失败时抛出 `AnalysisError`，由
+`pipeline.py` 直接生成本地结构化报告，不再启动第二个 CLI 候选命令。
 
 ---
 
@@ -357,8 +338,7 @@ viewer/server.py POST /api/analyze  ← 前端发起，HTTP 线程阻塞等待
   ├─ analyzer.py          诊断上下文文本 + prompt 模板 → subprocess.run("claude -p -")
   │   │                    stdin 灌入，阻塞等待 120s，stdout 捕获
   │   └─→ markdown 字符串
-  │       失败 → analyzers/registry.py 查回退 → 重试
-  │       全失败 → 本地 fallback markdown
+  │       失败 → 本地 fallback markdown
   │
   ├─ pipeline.py          markdown + ReportData → 注入 HTML 模板 → <!doctype html>...
   │

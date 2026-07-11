@@ -10,9 +10,8 @@ import socket
 import time
 import uuid
 import webbrowser
-from http.server import BaseHTTPRequestHandler
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 import urllib.request
 
 import uvicorn
@@ -52,22 +51,6 @@ def get_session(session_id: str, projects_dir: Path) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 _GANTT_BARRIER_TYPES = {"user", "assistant", "subagent"}
-
-
-def _iso_to_ms(ts: str) -> int:
-    """Convert ISO-8601 timestamp string to integer milliseconds. Returns 0 on failure."""
-    if not ts:
-        return 0
-    from datetime import datetime, timezone
-
-    s = ts.rstrip("Z").replace("+00:00", "")
-    for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
-        try:
-            dt = datetime.strptime(s, fmt).replace(tzinfo=timezone.utc)
-            return int(dt.timestamp() * 1000)
-        except ValueError:
-            continue
-    return 0
 
 
 def _flatten_gantt_nodes(nested_nodes: list) -> dict:
@@ -866,10 +849,14 @@ class ViewerBackend:
             import shlex
             analyzer_cmd = shlex.split(analyzer_cmd)
         analyzer_agent = self.analyzer_agent or self._agent_name() or "claude"
+        change_root, action_graph_path, event_graph_path = _openspec_graph_paths(change, repo_root)
         diagnosis = analyze_graph_feedback(
             feedback=feedback,
             action_graph=graph_payload["actionGraph"],
             event_graph=graph_payload["eventGraph"],
+            action_graph_path=action_graph_path,
+            event_graph_path=event_graph_path,
+            change_root=change_root,
             analyzer_cmd=analyzer_cmd,
             analyzer_agent=analyzer_agent,
             analyzer_timeout=self.analyzer_timeout,
@@ -1118,13 +1105,29 @@ class ViewerBackend:
         applied_edits = []
         for edit in edits:
             raw_idx = edit.get("msgIndex", 0)
-            edited_text = edit.get("editedText", "")
+            edited_text = edit.get("editedText")
+            should_edit_request = edited_text is not None
             idx = max(0, min(raw_idx, len(msgs) - 1)) if msgs else 0
-            if not msgs:
+            if should_edit_request and msgs:
+                msg = msgs[idx]
+                original_text = self._extract_msg_text_no_thinking(msg)
+                content = msg.get("content")
+                if isinstance(content, list):
+                    editable = [
+                        block for block in content
+                        if isinstance(block, dict) and block.get("type") != "tool_result"
+                    ]
+                    text_block = next((block for block in editable if block.get("type") == "text"), None)
+                    if text_block is not None:
+                        text_block["text"] = edited_text
+                    elif editable:
+                        editable[0]["text"] = edited_text
+                    else:
+                        msg["content"] = edited_text
+                else:
+                    msg["content"] = edited_text
+            else:
                 continue
-            msg = msgs[idx]
-            original_text = self._extract_msg_text_no_thinking(msg)
-            msg["content"] = edited_text
             applied_edits.append({
                 "msgIndex": idx,
                 "role": msg.get("role", ""),
@@ -1366,27 +1369,33 @@ def _attachment_response(data: bytes, filename: str, media_type: str) -> Respons
 _OPENSPEC_CHANGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
+def _openspec_graph_paths(change: str, repo_root: Path) -> tuple[Path, Path, Path]:
+    change_root = (repo_root / "openspec" / "changes" / change).resolve()
+    graph_dir = change_root / "graph"
+    return change_root, graph_dir / "action_graph.json", graph_dir / "event_graph.json"
+
+
 def _load_openspec_graph_response(change: str, repo_root: Path) -> tuple[int, dict[str, Any]]:
     change = change.strip("/")
     if not _OPENSPEC_CHANGE_RE.fullmatch(change):
         return 400, {"ok": False, "error": "invalid OpenSpec change name"}
-    graph_dir = repo_root / "openspec" / "changes" / change / "graph"
+    change_root, action_graph_path, event_graph_path = _openspec_graph_paths(change, repo_root)
+    graph_dir = change_root / "graph"
     if not graph_dir.is_dir():
         return 404, {"ok": False, "error": f"OpenSpec graph not found for change: {change}"}
 
     payload: dict[str, Any] = {"ok": True, "change": change}
-    for key, filename in (
-        ("actionGraph", "action_graph.json"),
-        ("eventGraph", "event_graph.json"),
-        ("diagnosis", "diagnosis.json"),
+    for key, path in (
+        ("actionGraph", action_graph_path),
+        ("eventGraph", event_graph_path),
+        ("diagnosis", graph_dir / "diagnosis.json"),
     ):
-        path = graph_dir / filename
         if not path.exists():
-            return 404, {"ok": False, "error": f"Missing graph artifact: {filename}"}
+            return 404, {"ok": False, "error": f"Missing graph artifact: {path.name}"}
         try:
             payload[key] = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            return 500, {"ok": False, "error": f"Failed to read {filename}: {exc}"}
+            return 500, {"ok": False, "error": f"Failed to read {path.name}: {exc}"}
     return 200, payload
 
 
@@ -1696,89 +1705,11 @@ def create_app(
     return app
 
 
-def _make_handler(
-    projects_dir: Path,
-    logs_dir: Path,
-    config_path: Path | None = None,
-    analyzer_cmd: str | None = None,
-    analyzer_agent: str | None = None,
-    analyzer_timeout: float | None = None,
-    adapter: AgentAdapter | None = None,
-    dataset_registry_root: Path | None = None,
-) -> type[BaseHTTPRequestHandler]:
-    config_path = config_path or (Path.home() / ".ccwhat" / "config.json")
-    app = create_app(
-        projects_dir,
-        logs_dir,
-        config_path,
-        analyzer_cmd=analyzer_cmd,
-        analyzer_agent=analyzer_agent,
-        analyzer_timeout=analyzer_timeout,
-        adapter=adapter,
-        dataset_registry_root=dataset_registry_root,
-    )
-    from fastapi.testclient import TestClient
-
-    client = TestClient(app)
-
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-            return
-
-        def _forward(self) -> None:
-            if self.path.startswith("/api/task-datasets/") and self.path.endswith("/download") and ".." in self.path:
-                body = json.dumps({"ok": False, "error": "invalid dataset id"}, ensure_ascii=False).encode("utf-8")
-                self.send_response(400)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Content-Length", str(len(body)))
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(body)
-                return
-
-            length = int(self.headers.get("Content-Length", "0") or "0")
-            body = self.rfile.read(length) if length else b""
-            headers = {key: value for key, value in self.headers.items()}
-            response = client.request(
-                self.command,
-                self.path,
-                content=body,
-                headers=headers,
-                follow_redirects=False,
-            )
-            self.send_response(response.status_code)
-            skipped_headers = {"connection", "content-encoding", "transfer-encoding", "content-length"}
-            for key, value in response.headers.items():
-                if key.lower() not in skipped_headers:
-                    self.send_header(key, value)
-            self.send_header("Content-Length", str(len(response.content)))
-            self.end_headers()
-            self.wfile.write(response.content)
-
-        def do_GET(self) -> None:
-            self._forward()
-
-        def do_POST(self) -> None:
-            self._forward()
-
-        def do_OPTIONS(self) -> None:
-            self._forward()
-
-    return Handler
-
-
 class ViewerServer:
     daemon_threads = True
 
-    def __init__(
-        self,
-        app: FastAPI,
-        handler_factory: Callable[[], type[BaseHTTPRequestHandler]],
-        port: int,
-    ) -> None:
+    def __init__(self, app: FastAPI, port: int) -> None:
         self.app = app
-        self._handler_factory = handler_factory
-        self._request_handler_class: type[BaseHTTPRequestHandler] | None = None
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._socket.bind(("127.0.0.1", port))
@@ -1786,12 +1717,6 @@ class ViewerServer:
         self.server_port = int(self.server_address[1])
         config = uvicorn.Config(app, host="127.0.0.1", port=self.server_port, log_level="warning", access_log=False)
         self._server = uvicorn.Server(config)
-
-    @property
-    def RequestHandlerClass(self) -> type[BaseHTTPRequestHandler]:
-        if self._request_handler_class is None:
-            self._request_handler_class = self._handler_factory()
-        return self._request_handler_class
 
     def serve_forever(self) -> None:
         self._server.run(sockets=[self._socket])
@@ -1829,17 +1754,7 @@ def create_server(
         adapter=adapter,
         dataset_registry_root=dataset_registry_root,
     )
-    handler_factory = lambda: _make_handler(
-        projects_dir,
-        logs_dir,
-        config_path,
-        analyzer_cmd=analyzer_cmd,
-        analyzer_agent=analyzer_agent,
-        analyzer_timeout=analyzer_timeout,
-        adapter=adapter,
-        dataset_registry_root=dataset_registry_root,
-    )
-    return ViewerServer(app, handler_factory, port)
+    return ViewerServer(app, port)
 
 
 def open_viewer(port: int) -> None:

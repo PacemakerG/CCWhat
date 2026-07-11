@@ -197,6 +197,10 @@ class OpenSpecGraphSyncTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(payload["diagnosis"]["suspicious_events"][0]["action_id"], "apply-1")
             analyze.assert_called_once()
+            prompt = analyze.call_args.args[0]
+            self.assertIn(str((change / "graph/action_graph.json").resolve()), prompt)
+            self.assertIn(str((change / "graph/event_graph.json").resolve()), prompt)
+            self.assertNotIn('"nodes":', prompt)
 
 
 if __name__ == "__main__":

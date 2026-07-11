@@ -131,7 +131,7 @@ codex exec --output-last-message <tmpfile> --ephemeral --ignore-user-config -
 特点：
 
 - prompt 走 stdin。
-- 输出可能是 JSONL 或 last-message 文件。
+- 输出为 JSONL。
 - 当前标记为 experimental。
 - 默认 timeout 较短，避免报告页面长时间等待。
 - 超时时会使用本地结构化 fallback 生成可读报告。
@@ -155,16 +155,6 @@ stdout JSONL -> parser -> report markdown
 ```
 
 parser 需要忽略工具事件、状态事件，只提取最终文本。
-
-### last_message_file
-
-适用于 Codex fallback：
-
-```text
-temporary file -> final message -> report markdown
-```
-
-`agentlens/analyzers/registry.py` 中的 `prepare_candidate()` 会处理 `<tmpfile>` 替换。
 
 ## 配置优先级
 
@@ -255,4 +245,3 @@ Analyzer 失败时不要让页面空白。
 - 不要假设 JSONL 每行都是最终文本。
 - 不要在 parser 中把 user prompt 当作报告输出。
 - 不要让 parser 输出空字符串后还声称成功。
-

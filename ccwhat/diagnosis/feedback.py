@@ -5,14 +5,14 @@ from __future__ import annotations
 import json
 import re
 from importlib import resources
+from pathlib import Path
 from typing import Any
 
 from ccwhat.analyzer import AnalysisError, run_mc_analysis
+from ccwhat.diagnosis.precheck import run_prechecks
 
 
-MAX_GRAPH_CONTEXT_CHARS = 28_000
 MAX_TEXT_PREVIEW = 700
-MAX_TOOL_INPUT_PREVIEW = 900
 
 
 def analyze_graph_feedback(
@@ -20,6 +20,9 @@ def analyze_graph_feedback(
     feedback: str,
     action_graph: dict[str, Any],
     event_graph: dict[str, Any],
+    action_graph_path: str | Path,
+    event_graph_path: str | Path,
+    change_root: str | Path,
     analyzer_cmd: list[str] | tuple[str, ...] | None = None,
     analyzer_agent: str | None = None,
     analyzer_timeout: int | float | None = None,
@@ -31,7 +34,16 @@ def analyze_graph_feedback(
     string values), one automatic format-fix attempt is made.  If that also
     fails the diagnosis gracefully degrades to ``_unavailable_result``.
     """
-    prompt = build_graph_attribution_prompt(feedback, action_graph, event_graph)
+    try:
+        prompt = build_graph_attribution_prompt(
+            feedback,
+            action_graph_path=action_graph_path,
+            event_graph_path=event_graph_path,
+            change_root=change_root,
+            precheck_findings=run_prechecks(change_root, action_graph, event_graph),
+        )
+    except ValueError as exc:
+        return _unavailable_result("diagnosis_input_unavailable", str(exc))
     try:
         raw, elapsed_ms = run_mc_analysis(
             prompt,
@@ -85,61 +97,31 @@ def build_graph_attribution_fix_prompt(raw: str, error: ValueError) -> str:
 
 def build_graph_attribution_prompt(
     feedback: str,
-    action_graph: dict[str, Any],
-    event_graph: dict[str, Any],
+    *,
+    action_graph_path: str | Path,
+    event_graph_path: str | Path,
+    change_root: str | Path,
+    precheck_findings: list[dict[str, Any]],
 ) -> str:
     template = resources.files("ccwhat").joinpath("assets/graph_attribution_prompt.md").read_text(encoding="utf-8")
-    context = build_compact_graph_context(action_graph, event_graph)
-    return template.replace("{{feedback}}", feedback.strip()).replace("{{graph_context}}", context)
-
-
-def build_compact_graph_context(
-    action_graph: dict[str, Any],
-    event_graph: dict[str, Any],
-) -> str:
-    actions = [item for item in action_graph.get("actions", []) if isinstance(item, dict)]
-    nodes = [item for item in event_graph.get("nodes", []) if isinstance(item, dict)]
-
-    ranked = sorted(enumerate(nodes), key=lambda item: (-_event_priority(item[1]), item[0]))
-    selected_indexes: set[int] = set()
-    used = 0
-    compact_by_index: dict[int, dict[str, Any]] = {}
-    for index, node in ranked:
-        compact = _compact_event(node)
-        size = len(json.dumps(compact, ensure_ascii=False))
-        if used + size > MAX_GRAPH_CONTEXT_CHARS and selected_indexes:
-            continue
-        selected_indexes.add(index)
-        compact_by_index[index] = compact
-        used += size
-
-    selected_events = [compact_by_index[index] for index in sorted(selected_indexes)]
-    selected_ids = {str(item.get("event_id") or "") for item in selected_events}
-    compact_actions = []
-    for action in actions:
-        event_ids = [str(value) for value in action.get("event_ids", []) if str(value) in selected_ids]
-        compact_actions.append({
-            "action_id": action.get("action_id"),
-            "type": action.get("type"),
-            "status": action.get("status"),
-            "event_ids": event_ids,
-            "mapping_reasons": [
-                item.get("reason")
-                for item in action.get("evidence", [])
-                if isinstance(item, dict) and item.get("reason")
-            ][:12],
-        })
-
-    return json.dumps(
-        {
-            "actions": compact_actions,
-            "events": selected_events,
-            "omitted_event_count": max(0, len(nodes) - len(selected_events)),
-            "source_note": "Claude Code raw Session behavior; final repository state is not verified",
-        },
-        ensure_ascii=False,
-        indent=2,
+    inputs = {
+        "action_graph_path": str(_require_path(action_graph_path, kind="file")),
+        "event_graph_path": str(_require_path(event_graph_path, kind="file")),
+        "change_root": str(_require_path(change_root, kind="directory")),
+        "precheck_findings": precheck_findings,
+    }
+    return template.replace("{{feedback}}", feedback.strip()).replace(
+        "{{diagnosis_inputs}}",
+        json.dumps(inputs, ensure_ascii=False, indent=2),
     )
+
+
+def _require_path(value: str | Path, *, kind: str) -> Path:
+    path = Path(value).expanduser().resolve()
+    valid = path.is_file() if kind == "file" else path.is_dir()
+    if not valid:
+        raise ValueError(f"Diagnosis {kind} is unavailable: {path}")
+    return path
 
 
 def parse_graph_attribution_output(raw: str) -> dict[str, Any]:
@@ -251,43 +233,6 @@ def validate_graph_attribution_result(
     }
 
 
-def _compact_event(node: dict[str, Any]) -> dict[str, Any]:
-    data = node.get("data") if isinstance(node.get("data"), dict) else {}
-    tool_input = data.get("tool_input")
-    return {
-        "event_id": node.get("node_id"),
-        "type": node.get("type"),
-        "label": _clip(node.get("label"), 240),
-        "timestamp": node.get("timestamp"),
-        "agent_id": node.get("agent_id"),
-        "turn_index": data.get("turn_index"),
-        "tool_name": data.get("tool_name"),
-        "tool_call_id": data.get("tool_call_id") or data.get("tool_use_id"),
-        "files": list(data.get("files") or [])[:20],
-        "command": _clip(data.get("command"), MAX_TEXT_PREVIEW),
-        "text": _clip(data.get("text"), MAX_TEXT_PREVIEW),
-        "tool_input": _clip_json(tool_input, MAX_TOOL_INPUT_PREVIEW),
-        "result_summary": _clip(data.get("result_summary"), MAX_TEXT_PREVIEW),
-        "is_error": bool(data.get("is_error")),
-    }
-
-
-def _event_priority(node: dict[str, Any]) -> int:
-    node_type = str(node.get("type") or "")
-    data = node.get("data") if isinstance(node.get("data"), dict) else {}
-    if data.get("is_error") or node_type == "error":
-        return 100
-    return {
-        "file_edit": 90,
-        "command": 85,
-        "final_claim": 80,
-        "tool_result": 75,
-        "user_message": 70,
-        "file_read": 45,
-        "assistant_text": 35,
-    }.get(node_type, 30)
-
-
 def _unavailable_result(code: str, message: str) -> dict[str, Any]:
     return {
         "available": False,
@@ -315,13 +260,6 @@ def _clip(value: Any, limit: int) -> str | None:
     text = str(value).strip()
     if not text:
         return None
-    return text if len(text) <= limit else text[: limit - 1] + "…"
-
-
-def _clip_json(value: Any, limit: int) -> Any:
-    if value in (None, {}, []):
-        return None
-    text = json.dumps(value, ensure_ascii=False, sort_keys=True)
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 

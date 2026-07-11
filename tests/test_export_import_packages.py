@@ -17,7 +17,8 @@ from click.testing import CliRunner
 
 from ccwhat.commands.import_ import import_ as import_command
 from ccwhat.exporter import build_tar_gz_bytes, default_filename
-from viewer.server import _make_handler, get_session
+from tests.http_compat import make_handler as _make_handler
+from viewer.server import get_session
 
 
 SID_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"

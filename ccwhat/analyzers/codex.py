@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
 
@@ -100,14 +99,3 @@ def parse_jsonl_text(stdout: str, stderr: str = "", extra_files: dict[str, str] 
             _append_item_text(ev.get("item"), texts)
             _append_message_text(ev.get("message"), texts)
     return "\n".join(texts)
-
-
-def parse_last_message_file(stdout: str, stderr: str = "", extra_files: dict[str, str] | None = None) -> str:
-    tmpfile = (extra_files or {}).get("last_message_file")
-    if not tmpfile or not os.path.isfile(tmpfile):
-        return ""
-    try:
-        with open(tmpfile, encoding="utf-8") as f:
-            return f.read().strip()
-    except (OSError, UnicodeDecodeError):
-        return ""

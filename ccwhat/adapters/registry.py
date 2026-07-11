@@ -11,10 +11,14 @@ from ccwhat.adapters.opencode import OpenCodeAdapter
 _AGENT_ALIASES: dict[str, str] = {
     "claude": "claude",
     "claude-code": "claude",
+    "claude_code": "claude",
+    "claude-code-cli": "claude",
     "codex": "codex",
+    "codex-cli": "codex",
     "opencode": "opencode",
     "open-code": "opencode",
     "open_code": "opencode",
+    "open-code-cli": "opencode",
 }
 
 

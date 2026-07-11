@@ -36,7 +36,7 @@ def _session(session_id: str, project_dir: str, text: str) -> dict[str, Any]:
 
 def _make_server(registry_root: Path, *, fail_session: str | None = None):
     from ccwhat.adapters.base import AgentAdapter
-    from viewer.server import _make_handler
+    from tests.http_compat import make_handler as _make_handler
 
     sessions = {
         SID_A: _session(SID_A, "project-one", "alpha needle current session"),

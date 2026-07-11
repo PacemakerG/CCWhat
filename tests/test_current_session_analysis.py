@@ -16,7 +16,7 @@ from ccwhat.analyzer import (
 )
 from ccwhat.session_report import normalize_session_for_report
 from ccwhat.session_report.pipeline import build_generic_html_report, build_html_session_report
-from viewer.server import _make_handler
+from tests.http_compat import make_handler as _make_handler
 
 
 SID = "cccccccc-cccc-cccc-cccc-cccccccccccc"
@@ -1678,7 +1678,6 @@ class AnalyzeFrontendTests(unittest.TestCase):
         self.assertIn("analysisReports[cacheKey] = cached", html)
         self.assertIn("analysisReports[preserveKey] = previous", html)
         self.assertIn("function showCachedAnalysisReport(key)", html)
-        self.assertIn("function reanalyzeCurrentSession()", html)
         self.assertIn("function analyzeCurrentSession()", html)
         self.assertIn("openModeModal()", html)
         self.assertIn("modeOverlay", html)
@@ -1763,19 +1762,6 @@ class AnalyzerAdapterTests(unittest.TestCase):
         )
         result = codex_parse(stdout)
         self.assertEqual(result, "Final from response item\nFinal from event msg")
-
-    def test_codex_last_message_file_parser(self) -> None:
-        from ccwhat.analyzers.codex import parse_last_message_file
-        with tempfile.TemporaryDirectory() as tmp:
-            tmpfile = str(Path(tmp) / "last_msg.txt")
-            Path(tmpfile).write_text("Report text", encoding="utf-8")
-            result = parse_last_message_file("", extra_files={"last_message_file": tmpfile})
-            self.assertEqual(result, "Report text")
-
-    def test_codex_last_message_file_missing(self) -> None:
-        from ccwhat.analyzers.codex import parse_last_message_file
-        result = parse_last_message_file("", extra_files={"last_message_file": "/nonexistent"})
-        self.assertEqual(result, "")
 
     def test_analyzer_spec_priority_explicit_cmd_overrides_registry(self) -> None:
         completed = subprocess.CompletedProcess(["custom-cmd"], 0, stdout="custom report", stderr="")
@@ -1994,36 +1980,6 @@ class AnalyzerAdapterTests(unittest.TestCase):
         effective = adapter_agent or report_session.primary_agent_type or "claude"
         self.assertEqual(effective, "opencode")
         self.assertEqual(report_session.primary_agent_type, "opencode")
-
-    def test_codex_fallback_on_timeout(self) -> None:
-        """Codex should fall back to last-message-file on timeout."""
-        from ccwhat.analyzers.registry import get_candidates, prepare_candidate
-        import subprocess as _sp
-        # Mock first call to timeout
-        first = mock.Mock(side_effect=_sp.TimeoutExpired("codex", 300))
-        # Mock second call to succeed (last-message-file)
-        second_stdout = ""
-        second = mock.Mock(return_value=_sp.CompletedProcess(["codex"], 0, stdout=second_stdout, stderr=""))
-        runner = mock.Mock(side_effect=[_sp.TimeoutExpired("codex", 300), _sp.CompletedProcess(["codex"], 0, stdout=second_stdout, stderr="")])
-
-        # The fallback is in run_mc_analysis's candidate loop.
-        # We need to make the first attempt fail then a candidate succeeds.
-        # Since the candidates use the registry and run_mc_analysis handles this,
-        # let's just verify the primary attempt fails but fallback works.
-        # We can't easily mock this at the runner level because candidates
-        # use subprocess.run internally.
-        # Instead, verify the candidate mechanism is wired up:
-        candidates = get_candidates("codex")
-        self.assertEqual(len(candidates), 1)
-        self.assertEqual(candidates[0].output_mode, "last_message_file")
-        cmd, extra = prepare_candidate(candidates[0])
-        self.assertIn("--output-last-message", cmd)
-        self.assertIn("last_message_file", extra)
-        # Cleanup
-        import shutil
-        parent = Path(extra["last_message_file"]).parent
-        if parent.is_dir():
-            shutil.rmtree(parent, ignore_errors=True)
 
 
 if __name__ == "__main__":

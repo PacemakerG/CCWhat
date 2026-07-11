@@ -2420,34 +2420,6 @@ function onMsgTextareaInput(idx, textarea) {
   if (mark) mark.style.display = isEdited ? 'inline' : 'none';
 }
 
-function extractMsgText(msg) {
-  if (!msg) return '';
-  const content = msg.content;
-  if (typeof content === 'string') return stripLeadingSystemText(content);
-  if (Array.isArray(content)) {
-    const parts = [];
-    for (const block of content) {
-      if (block.type === 'text' && block.text) {
-        const text = stripLeadingSystemText(block.text);
-        if (text) parts.push(text);
-      }
-      else if (block.type === 'thinking' && block.thinking) parts.push(`[Thinking] ${block.thinking}`);
-      else if (block.type === 'tool_result' && block.content) {
-        if (typeof block.content === 'string') parts.push(`[Tool Result] ${block.content}`);
-        else if (Array.isArray(block.content)) {
-          const toolTexts = block.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
-          parts.push(`[Tool Result] ${toolTexts}`);
-        }
-      } else if (block.type === 'tool_use') {
-        parts.push(`[Tool Use: ${block.name}] ${JSON.stringify(block.input)}`);
-      }
-    }
-    return parts.join('\n\n');
-  }
-  if (msg.text) return msg.text;
-  if (msg.thinking) return msg.thinking;
-  return '';
-}
 
 function hasToolResultContent(msg) {
   const content = msg?.content;
@@ -2613,6 +2585,9 @@ async function sendReplayFromModal(useOriginal) {
   try {
     const record = currentModalRecord;
     const reqJson = JSON.parse(record.request?.body || '{}');
+    const msgs = reqJson.messages || [];
+    const userMsg = findReplayTargetMessage(msgs);
+    const originalText = extractReplayTargetText(userMsg);
 
     // Collect edited entries with changes, sorted by index
     let edits = [];
@@ -2633,7 +2608,7 @@ async function sendReplayFromModal(useOriginal) {
       body: JSON.stringify({
         record,
         reqJson,
-        originalText: '',
+        originalText,
         recordKey: currentModalRecordKey
       })
     });

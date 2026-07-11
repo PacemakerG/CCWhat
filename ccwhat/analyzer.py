@@ -216,92 +216,13 @@ def run_mc_analysis(
     agent: str | None = None,
     default_agent: str | None = None,
 ) -> tuple[str, int]:
-    from ccwhat.analyzers.registry import (
-        get_candidates,
-        prepare_candidate,
-    )
-
     normalized_agent = _resolve_analyzer_agent(agent, default_agent=default_agent)
     spec, resolved_cmd = _analyze_spec(cmd, agent=normalized_agent)
     effective_timeout = _resolve_analyzer_timeout(timeout, spec=spec)
-    env_cmd = _os.environ.get("CCWHAT_ANALYZE_CMD", "").strip()
-
-    has_cmd_source = bool(cmd) or bool(env_cmd)
-
-    # If explicit cmd or env override, use it directly (no fallback)
-    if has_cmd_source:
-        run = runner or subprocess.run
-        return _run_one_try(prompt, resolved_cmd, effective_timeout, spec, run)
-
-    # No explicit cmd — use the primary spec
-    if spec is None:
-        raise AnalysisError(
-            f"Analyzer protocol is not supported for agent '{normalized_agent}'. "
-            f"Supported agents: {', '.join(_list_analyzer_names())}",
-            "analyzer_not_supported",
-        )
-
-    run = runner or subprocess.run
-    candidates = get_candidates(normalized_agent)
-    if not candidates:
-        # No fallback candidates — try the primary spec once
-        return _run_one_try(prompt, resolved_cmd, effective_timeout, spec, run)
-
-    # Try primary spec first, then fallback candidates
-    last_error: AnalysisError | None = None
-    try:
-        return _run_one_try(prompt, resolved_cmd, effective_timeout, spec, run)
-    except (AnalysisError, subprocess.TimeoutExpired) as primary_err:
-        cmd_not_found = isinstance(primary_err, AnalysisError) and primary_err.code == "analyzer_not_found"
-        if cmd_not_found:
-            raise
-        last_error = _as_analysis_error(primary_err, effective_timeout)
-
-    # Try fallback candidates
-    _cleanup_dirs: list[str] = []
-    try:
-        for candidate in candidates:
-            try:
-                cand_cmd, extra = prepare_candidate(candidate)
-                _cleanup_dirs.append(str(Path(extra.get("last_message_file", "")).parent))
-                candidate_timeout = _resolve_analyzer_timeout(timeout, spec=candidate)
-                result = _run_one_try(prompt, cand_cmd, candidate_timeout, candidate, run, extra_files=extra)
-                return result
-            except (AnalysisError, subprocess.TimeoutExpired) as fallback_err:
-                fnf = isinstance(fallback_err, AnalysisError) and fallback_err.code == "analyzer_not_found"
-                if fnf:
-                    raise
-                candidate_timeout = _resolve_analyzer_timeout(timeout, spec=candidate)
-                last_error = _as_analysis_error(fallback_err, candidate_timeout)
-                continue
-    finally:
-        for d in _cleanup_dirs:
-            if d and Path(d).is_dir():
-                import shutil as _su
-                try:
-                    _su.rmtree(d, ignore_errors=True)
-                except Exception:
-                    pass
-
-    if last_error:
-        raise AnalysisError(
-            f"{last_error.message}\n\n"
-            f"Analyzer agent: {normalized_agent} (experimental={spec.experimental}). "
-            f"Timeout: {effective_timeout}s. "
-            f"Fallback tried: {len(candidates)} candidate(s). "
-            f"Try setting CCWHAT_ANALYZE_TIMEOUT to a larger value or "
-            f"CCWHAT_ANALYZE_AGENT=claude to use the stable analyzer.",
-            code=last_error.code,
-        )
-    raise AnalysisError(
-        f"All analyzer attempts failed for agent '{normalized_agent}'.",
-        "analyzer_failed",
+    return _run_one_try(
+        prompt,
+        resolved_cmd,
+        effective_timeout,
+        spec,
+        runner or subprocess.run,
     )
-
-
-def _as_analysis_error(exc: Exception, timeout_sec: int) -> AnalysisError:
-    if isinstance(exc, subprocess.TimeoutExpired):
-        return AnalysisError(f"Analysis timed out after {timeout_sec} seconds.", "analyzer_timeout")
-    if isinstance(exc, AnalysisError):
-        return exc
-    return AnalysisError(str(exc), "analyzer_failed")

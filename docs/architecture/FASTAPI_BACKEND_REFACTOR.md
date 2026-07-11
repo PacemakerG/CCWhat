@@ -4,7 +4,7 @@
 
 CCWhat Viewer 之前使用 `BaseHTTPRequestHandler` 手写路由、CORS、JSON body 读取和二进制响应。该实现可用，但所有路由逻辑集中在一个 handler class 中，后续新增接口、测试隔离和异常处理成本较高。
 
-v2.2.7 将生产后端入口迁移到 FastAPI + uvicorn，同时保留旧 `_make_handler()` 兼容层，保证现有测试和潜在外部调用可以继续工作。
+v2.2.7 将生产后端入口迁移到 FastAPI + uvicorn。生产代码现在只保留这一套 HTTP 栈。
 
 ## 新入口
 
@@ -21,11 +21,6 @@ v2.2.7 将生产后端入口迁移到 FastAPI + uvicorn，同时保留旧 `_make
   - uvicorn 启动封装。
   - 预绑定本地 socket 以支持 `port=0` 自动分配端口。
   - 暴露 `serve_forever()`、`shutdown()`、`server_close()`，兼容 CLI 管理生命周期。
-
-- `viewer.server._make_handler(...)`
-  - 旧 stdlib HTTP 测试兼容层。
-  - 内部创建 FastAPI app，并用 `TestClient` 转发请求。
-  - 仅在旧测试或兼容调用显式使用时才导入 `TestClient`，生产 `create_server()` 不依赖 `httpx`。
 
 ## 保留的接口契约
 
@@ -51,7 +46,7 @@ v2.2.7 将生产后端入口迁移到 FastAPI + uvicorn，同时保留旧 `_make
 - `/api/search` 继续默认 `scope=current_session`，返回 `ok/results/truncated/warnings`。
 - `/api/analyze`、`/api/task-segments`、`/api/save-task-dataset` 继续接收单个 `sessionId` 字段。
 - `/api/replay/*` 继续复用原始请求体和原始 headers，只替换用户编辑文本。
-- Dataset 下载路径穿越校验在 FastAPI middleware 和 `_make_handler` 兼容层各处理一次，避免 Starlette 路径规范化把旧 400 变成 404。
+- Dataset 下载路径穿越校验由 FastAPI middleware 统一处理。
 
 ## 验证
 

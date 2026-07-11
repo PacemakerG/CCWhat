@@ -8,7 +8,6 @@ viewer/server.py
 ├── HTTP / req-resp / recording / search helper
 ├── ViewerBackend
 ├── create_app()
-├── _make_handler()
 ├── ViewerServer
 ├── create_server()
 └── run_server()
@@ -37,20 +36,6 @@ viewer/server.py
 
 生产后端的网络框架从这里开始，后续新增 API 应优先挂到 `create_app()`。
 
-### `_make_handler()`
-
-`_make_handler()` 是兼容层，不再承载真实路由实现。
-
-它的用途：
-
-- 支持现有基于 `HTTPServer(("127.0.0.1", 0), _make_handler(...))` 的测试。
-- 支持少量直接访问 `RequestHandlerClass` 的兼容测试。
-
-它的限制：
-
-- 依赖 `fastapi.testclient.TestClient`，因此只应在测试/兼容路径使用。
-- 不应在新生产代码中继续扩展 stdlib handler 逻辑。
-
 ### `ViewerServer`
 
 `ViewerServer` 是 uvicorn 的最小生命周期封装。
@@ -61,9 +46,6 @@ viewer/server.py
 - `serve_forever()`
 - `shutdown()`
 - `server_close()`
-- 懒加载的 `RequestHandlerClass`
-
-`RequestHandlerClass` 只在旧测试访问时创建，避免生产启动依赖 `httpx`。
 
 ## CLI 集成
 
@@ -112,5 +94,4 @@ pyproject.toml
 
 1. 将业务逻辑放进独立模块或 `ViewerBackend` 方法。
 2. 在 `create_app()` 中注册 FastAPI route。
-3. 如果旧测试仍需要 stdlib HTTPServer，复用 `_make_handler()`，不要新增 handler 分支。
-4. 为路由补最小 API 测试，再考虑是否需要真实 uvicorn smoke。
+3. 为路由补最小 FastAPI API 测试，再考虑是否需要真实 uvicorn smoke。

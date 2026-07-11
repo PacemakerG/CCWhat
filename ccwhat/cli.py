@@ -14,7 +14,6 @@ from ccwhat.commands.proxy import proxy
 from ccwhat.commands.run import run
 from ccwhat.commands.setup import setup
 from ccwhat.commands.start import start
-from ccwhat.commands.start_mc import start_mc
 from ccwhat.commands.web_server import web_server
 from ccwhat.config import DEFAULT_RAW_LOG_DIR
 
@@ -116,7 +115,6 @@ cli.add_command(web_server)
 cli.add_command(export)
 cli.add_command(import_)
 cli.add_command(clear_req_resp)
-cli.add_command(start_mc)  # deprecated, hidden alias
 cli.add_command(diagnose)
 cli.add_command(openspec_graph)
 cli.add_command(openspec_mark)

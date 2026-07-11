@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 
 def _make_test_server(session_data: dict | None = None):
     """Return (server, port) with a mock adapter that returns session_data."""
-    from viewer.server import _make_handler
+    from tests.http_compat import make_handler as _make_handler
     from ccwhat.adapters.base import AgentAdapter
 
     class _MockAdapter(AgentAdapter):

@@ -34,7 +34,7 @@ SESSION_FIXTURE = {
 
 def _make_test_server(registry_root: Path, session_data: dict | None = SESSION_FIXTURE):
     from ccwhat.adapters.base import AgentAdapter
-    from viewer.server import _make_handler
+    from tests.http_compat import make_handler as _make_handler
 
     class _MockAdapter(AgentAdapter):
         @property
