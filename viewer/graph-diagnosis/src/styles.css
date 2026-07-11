@@ -71,6 +71,7 @@
 .gd-navigator svg { display:block; width:100%; height:auto; margin-top:2px; }
 .gd-navigator-line { stroke:var(--gd-line); stroke-width:1; }
 .gd-navigator-detail-link { stroke:var(--gd-accent); stroke-width:1; stroke-dasharray:2 2; }
+.gd-navigator-overview-window { fill:none; stroke:var(--gd-accent); stroke-width:1.2; }
 .gd-navigator-viewport { fill:var(--gd-accent); stroke:var(--gd-accent); stroke-width:1; }
 .gd-navigator-detail-label { fill:#fff; font:11px var(--font-mono, monospace); pointer-events:none; }
 .gd-navigator-action { cursor:pointer; outline:none; }

@@ -263,6 +263,7 @@ function GraphNavigator({
     <div className="gd-navigator-title">{view === 'action' && activeAction ? `${activeAction.label} · ${eventIds.length} ${t.events}` : t.overview}</div>
     <svg viewBox={`0 0 ${width} 94`} role="img" aria-label="Workflow navigator">
       <path className="gd-navigator-line" d={`M 15 24 H ${width - 15}`} />
+      {view === 'overview' && <rect className="gd-navigator-overview-window" x="5" y="9" width={width - 10} height="42" rx="5" />}
       {actions.map((action, index) => {
         const x = 15 + index * step;
         const isActive = action.action_id === activeAction?.action_id;
