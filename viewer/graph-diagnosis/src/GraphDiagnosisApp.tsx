@@ -95,6 +95,9 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
   const [selection, setSelection] = useState<InspectorSelection>(null);
   const [diagnosisActionsOnly, setDiagnosisActionsOnly] = useState(false);
   const { fitView } = useReactFlow();
+  const miniMapPalette = context.theme === 'dark'
+    ? { background: '#12171d', mask: 'rgba(8, 11, 15, 0.72)', action: '#57b5ff', event: '#536171', stroke: '#1e2a36' }
+    : { background: '#f7f9fb', mask: 'rgba(238, 242, 247, 0.72)', action: '#0071e3', event: '#8090a3', stroke: '#d1d9e3' };
 
   useEffect(() => {
     setView('overview');
@@ -221,7 +224,15 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
         >
           <Background gap={18} size={1} color="var(--gd-grid)" />
           <Controls showInteractive={false} />
-          <MiniMap zoomable pannable nodeColor={(node) => node.data?.kind === 'action' ? 'var(--gd-accent)' : 'var(--gd-event)'} />
+          <MiniMap
+            zoomable
+            pannable
+            bgColor={miniMapPalette.background}
+            maskColor={miniMapPalette.mask}
+            nodeColor={(node) => node.data?.kind === 'action' ? miniMapPalette.action : miniMapPalette.event}
+            nodeStrokeColor={miniMapPalette.stroke}
+            nodeBorderRadius={4}
+          />
         </ReactFlow> : <div className="gd-empty">{diagnosisActionsOnly ? t.noDiagnosis : 'No graph nodes'}</div>}
       </div>
       <aside className="gd-inspector">
