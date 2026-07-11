@@ -397,7 +397,7 @@ wheels = [
 
 [[package]]
 name = "ccwhat"
-version = "2.4.4"
+version = "2.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "claude-code-log", marker = "python_full_version >= '3.12'" },

@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import shlex
-import sys
 
 
 INTEGRATION_VERSION = "1"
@@ -66,11 +64,10 @@ def _command_content(name: str, description: str, argument_hint: str) -> str:
 
 
 def _hook_content() -> str:
-    python = shlex.quote(sys.executable)
     return (
         f"#!/bin/sh\n"
         f"# {MANAGED_MARKER} v{INTEGRATION_VERSION}\n"
-        f"exec {python} -m ccwhat.runtime.claude_hook\n"
+        "exec \"${CCWHAT_PYTHON:-python3}\" -m ccwhat.runtime.claude_hook\n"
     )
 
 

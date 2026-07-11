@@ -152,7 +152,7 @@ Run      ─── 一次 ccwhat --claude 会话
   "status": "finalized",
   "started_at": "2026-06-24T13:05:57.464946Z",
   "finished_at": "2026-06-24T13:11:44.805095Z",
-  "workspace": "/Users/elon2ge/workspace/CCWhat",
+  "workspace": "~/workspace/CCWhat",
   "instruction": "hello",
   "success_criteria": null,
   "expected_tests": [],
@@ -279,7 +279,7 @@ events 数组中的每条事件包含：
 {
   "change_id": "change-004",
   "event_id": "main:89",
-  "file": "/Users/elon2ge/.../slash-commands.md",
+  "file": "~/workspace/project/slash-commands.md",
   "kind": "write",               // write / edit / command
   "source": "claude_write",
   "old_string": null,

@@ -18,7 +18,7 @@
 
 <p>
   <strong>Changelog:</strong>
-  <a href="./CHANGELOG.md">v2.4.4</a> ·
+  <a href="./CHANGELOG.md">v2.5.0</a> ·
   <a href="./CHANGELOG.md">更新日志</a>
 </p>
 
@@ -263,7 +263,13 @@ Windows 遇到端口被 TCP excluded port range 拒绝时，按错误提示换�
 
 ## 📈 v2 版本演进
 
-**v2.4** — 当前版本
+**v2.5** — 当前版本
+
+- OpenSpec 完整适配：Marker-scoped 原始 Session 证据、真实 Action 流程图、Event 细图与中文反馈诊断
+- React 诊断图：Action / Event 单画布钻取、证据 Inspector、时间线与流程导航
+- 下一步：适配 Power 模板，复用同一套原始日志与 Marker 归因边界
+
+**v2.4**
 
 - OpenSpec DAG 图诊断：Step 级 Event Graph + 固定 7 节点 Action Graph + source binding（session / dataset / milestone fallback）
 - Runtime Dataset 重构：只保留 task 边界 git diff（`task.diff`）+ 边界元数据（`task.json`），砍掉 step-by-step diff / `task_trace.json` / `diff_total.patch`

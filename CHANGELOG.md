@@ -2,6 +2,27 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
+## v2.5.0 - 2026-07-11
+
+### OpenSpec 归因诊断：首个完整 Workflow Adapter
+
+CCWhat 现已完整适配 OpenSpec：以 Claude Code 原始 Session 与显式 Marker 为唯一证据来源，能够按真实执行顺序生成 Change 的流程图、事件图与用户反馈诊断。下一步将以同一适配器边界接入 Power 模板。
+
+### 新增
+
+- **Marker 归属边界**：新增 `ccwhat openspec-mark`，用 start/end Marker 从一个原始 Session 精确提取一个 OpenSpec change 的行为证据
+- **实际流程图**：Action Graph 不再预置固定七节点，按 Marker 记录真实执行段，支持 `Apply #1 → Verify #1 → Apply #2` 等重复流程
+- **React 诊断图**：Viewer 接入 React Flow Island，支持 Action 总览、原地钻取 Event、节点 Inspector、时间线、诊断高亮与原始 Session 回跳
+- **反馈诊断**：用户反馈可定位到真实 Action / Event ID；诊断提示词要求使用简体中文输出
+
+### 改进
+
+- **证据来源收敛**：`openspec-graph sync` 只接受 Marker-scoped Claude Code Session，不再把 Dataset、Runtime Task 或 Git diff 引入 OpenSpec 诊断主链
+- **细图可读性**：Event Graph 只保留原始时间顺序，粗节点通过 `event_ids` 直接对应细事件，避免推测性的跨阶段连接
+- **图谱导航**：诊断图提供时间线返回总览、诊断相关粗节点筛选与流程缩略导航
+
+---
+
 ## v2.4.4 - 2026-07-10
 
 ### Event Graph 升级：Session Step 级细图与服务端 Graph 同步

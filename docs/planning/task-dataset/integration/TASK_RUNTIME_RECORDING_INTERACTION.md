@@ -117,7 +117,7 @@ ccwhat -- claude
 CCWhat recording started
 Run       : run-20260622-153011-a1b2c3
 Agent     : opencode
-Workspace : /Users/example/workspace/project
+Workspace : ~/workspace/project
 Task      : none
 ```
 
@@ -200,7 +200,7 @@ Viewer 可以展示和控制当前 run：
 Recording
 Run: run-20260622-153011-a1b2c3
 Agent: opencode
-Workspace: /Users/example/workspace/project
+Workspace: ~/workspace/project
 Active Task: none
 
 [开始 Task] [完成 Task] [废弃 Task]
@@ -300,7 +300,7 @@ idle
 ```text
 Run       : run-20260622-153011-a1b2c3
 Agent     : opencode
-Workspace : /Users/example/workspace/project
+Workspace : ~/workspace/project
 Task      : task-001 recording
 Started   : 2026-06-22T15:31:12+08:00
 Title     : 修复 dataset runtime recording
@@ -562,7 +562,7 @@ POST /runtime-runs/<run-id>/tasks/note
   "schema_version": "ccwhat-runtime-run-v1",
   "run_id": "run-20260622-153011-a1b2c3",
   "agent": "opencode",
-  "workspace": "/Users/example/workspace/project",
+  "workspace": "~/workspace/project",
   "started_at": "2026-06-22T15:30:11+08:00",
   "status": "running",
   "proxy": {

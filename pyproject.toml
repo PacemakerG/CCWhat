@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ccwhat"
-version = "2.4.4"
+version = "2.5.0"
 description = "Record and analyze AI coding CLI traffic"
 requires-python = ">=3.10"
 dependencies = [
@@ -33,4 +33,4 @@ include = ["ccwhat*", "viewer*"]
 
 [tool.setuptools.package-data]
 ccwhat = ["assets/*.md", "assets/*.json", "assets/session-report/*.md", "assets/session-report/*.html", "assets/session-report/vendor/*"]
-viewer = ["*.html"]
+viewer = ["*.html", "static/graph-diagnosis/*"]

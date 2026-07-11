@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/elon2ge/workspace/CCWhat/.venv/bin/python3 -m ccwhat.runtime.codex_hook",
+            "command": "${CCWHAT_PYTHON:-python3} -m ccwhat.runtime.codex_hook",
             "timeout": 10
           }
         ]

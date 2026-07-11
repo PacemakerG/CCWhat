@@ -1132,7 +1132,7 @@ class ViewerBackend:
                 "editedText": edited_text,
             })
 
-        api_url = os.environ.get("CLAUDE_API_URL", "https://mcli.sankuai.com/v1/messages")
+        api_url = os.environ.get("CLAUDE_API_URL", "https://api.anthropic.com/v1/messages")
         if "?" not in api_url:
             api_url += "?beta=true"
 

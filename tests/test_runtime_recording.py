@@ -375,11 +375,11 @@ def test_opencode_integration_removes_legacy_colon_commands_on_posix() -> None:
         assert not legacy_finish.exists()
 
 
-def test_runtime_hook_commands_quote_windows_python_paths() -> None:
+def test_runtime_hook_commands_use_portable_claude_python() -> None:
     with mock.patch("sys.executable", r"C:\Program Files\Python313\python.exe"), \
          mock.patch("ccwhat.runtime.platform.os.name", "nt"):
         assert codex_hook_command().startswith(r'"C:\Program Files\Python313\python.exe" -m ')
-        assert "exec 'C:\\Program Files\\Python313\\python.exe' -m ccwhat.runtime.claude_hook" in claude_hook_content()
+        assert 'exec "${CCWHAT_PYTHON:-python3}" -m ccwhat.runtime.claude_hook' in claude_hook_content()
 
 
 def test_claude_hook_command_drives_controller_and_staging() -> None:

@@ -215,7 +215,7 @@ Dataset = 要做什么
   "errors": [],
   "final_claim": null,
   "repo_state": {
-    "cwd": "/Users/example/workspace/AgentLens",
+    "cwd": "~/workspace/AgentLens",
     "base_commit": "abc123",
     "head_commit": null,
     "git_dirty_at_export": true

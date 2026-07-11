@@ -273,7 +273,7 @@ Access-Control-Allow-Origin: *\r\n
 Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n
 Access-Control-Allow-Headers: Content-Type\r\n
 \r\n
-{"projects":[{"projectDir":"/Users/elon2ge/.claude/projects/some-project","sessions":[{"id":"abc123...","title":"My Session"}]}]}
+{"projects":[{"projectDir":"~/.claude/projects/some-project","sessions":[{"id":"abc123...","title":"My Session"}]}]}
 ```
 
 这就是一步步拼接的结果。
