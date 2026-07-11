@@ -44,6 +44,10 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertTrue((GRAPH_DIAGNOSIS_STATIC_DIR / "graph-diagnosis.js").exists())
         self.assertTrue((GRAPH_DIAGNOSIS_STATIC_DIR / "graph-diagnosis.css").exists())
         self.assertIn("CCWhatGraphDiagnosis", (GRAPH_DIAGNOSIS_STATIC_DIR / "graph-diagnosis.js").read_text(encoding="utf-8"))
+        app_source = (GRAPH_DIAGNOSIS_DIR / "src" / "GraphDiagnosisApp.tsx").read_text(encoding="utf-8")
+        self.assertIn("gd-diagnosis-top", app_source)
+        self.assertIn("diagnosisActions", app_source)
+        self.assertIn("gd-timeline-back", app_source)
 
 
 if __name__ == "__main__":

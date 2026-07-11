@@ -47,13 +47,20 @@
 .gd-info > span { display:block; color:var(--gd-muted); font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; margin-bottom:4px; }
 .gd-info pre { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--gd-text); font:11px/1.48 var(--font-mono, monospace); }
 .gd-raw-button { width:100%; margin-top:14px; color:var(--gd-accent); }
-.gd-footer { display:grid; grid-template-columns:1.25fr .55fr 1.2fr; gap:0; border-top:1px solid var(--gd-border); }
+.gd-footer { display:grid; grid-template-columns:1.5fr .65fr; gap:0; border-top:1px solid var(--gd-border); }
 .gd-footer section { min-height:116px; padding:13px 14px; border-right:1px solid var(--gd-border); }
 .gd-footer section:last-child { border-right:0; }
+.gd-footer-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.gd-footer-heading .gd-panel-title { margin-bottom:9px; }
+.gd-timeline-back { margin-top:-6px; }
 .gd-timeline { overflow:auto; padding-bottom:4px; }
 .gd-timeline-step { flex:none; border-radius:999px; padding:5px 8px; color:var(--gd-muted); font-size:11px; }
 .gd-timeline-step.is-active { background:var(--gd-accent); color:#fff; border-color:var(--gd-accent); }
 .gd-diagnosis { font-size:11px; line-height:1.5; }
+.gd-diagnosis-top { display:grid; grid-template-columns:112px minmax(0, 1fr); column-gap:14px; align-items:start; padding:12px 14px; border-bottom:1px solid var(--gd-border); background:color-mix(in srgb, var(--gd-accent) 4%, var(--gd-bg)); }
+.gd-diagnosis-top .gd-panel-title { margin-top:3px; }
+.gd-diagnosis-top p { margin:0 0 7px; grid-column:2; }
+.gd-diagnosis-top .gd-diagnosis-link { grid-column:2; }
 .gd-diagnosis p { margin:0 0 8px; color:var(--gd-text); }
 .gd-diagnosis-link { display:block; width:100%; text-align:left; border:0; border-top:1px solid var(--gd-border); border-radius:0; padding:6px 0; color:var(--gd-accent); font-size:11px; }
 .react-flow__controls { box-shadow:none !important; border:1px solid var(--gd-border) !important; }
@@ -66,4 +73,6 @@
   .gd-footer { grid-template-columns:1fr; }
   .gd-footer section { border-right:0; border-bottom:1px solid var(--gd-border); }
   .gd-footer section:last-child { border-bottom:0; }
+  .gd-diagnosis-top { grid-template-columns:1fr; }
+  .gd-diagnosis-top p, .gd-diagnosis-top .gd-diagnosis-link { grid-column:1; }
 }

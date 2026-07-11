@@ -8,6 +8,7 @@ import unittest
 
 from ccwhat.diagnosis.feedback import (
     analyze_graph_feedback,
+    build_graph_attribution_prompt,
     build_compact_graph_context,
     parse_graph_attribution_output,
     validate_graph_attribution_result,
@@ -42,6 +43,12 @@ EVENT_GRAPH = {
 
 
 class GraphFeedbackTests(unittest.TestCase):
+    def test_prompt_requires_simplified_chinese_output(self) -> None:
+        prompt = build_graph_attribution_prompt("按钮没有生效", ACTION_GRAPH, EVENT_GRAPH)
+
+        self.assertIn("必须使用简体中文", prompt)
+        self.assertIn("Action ID 和 Event ID 保持原样", prompt)
+
     def test_compact_context_keeps_graph_ids_and_tool_evidence(self) -> None:
         context = json.loads(build_compact_graph_context(ACTION_GRAPH, EVENT_GRAPH))
 

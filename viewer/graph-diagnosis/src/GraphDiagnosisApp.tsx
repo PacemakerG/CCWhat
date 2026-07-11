@@ -44,7 +44,7 @@ type FlowData = {
 
 const copy = {
   zh: {
-    overview: '总览', eventView: '事件证据', fit: '适配画布', all: '全部节点', relevant: '仅诊断相关',
+    overview: '总览', eventView: '事件证据', fit: '适配画布', diagnosisActions: '仅诊断相关粗节点', allActions: '显示全部粗节点',
     events: '事件', inspector: '节点检查器', noSelection: '选择一个节点查看原始证据',
     raw: '查看原始 Session', timeline: '执行时间线', coverage: '证据覆盖', diagnosis: '诊断路径',
     noDiagnosis: '尚未生成诊断。提交反馈后，这里会高亮候选 Action 和真实事件。',
@@ -52,7 +52,7 @@ const copy = {
     toolInput: '工具输入', result: '工具结果', source: '原始引用', back: '返回总览',
   },
   en: {
-    overview: 'Overview', eventView: 'Event evidence', fit: 'Fit view', all: 'All nodes', relevant: 'Diagnosis only',
+    overview: 'Overview', eventView: 'Event evidence', fit: 'Fit view', diagnosisActions: 'Diagnosis actions only', allActions: 'Show all actions',
     events: 'events', inspector: 'Node inspector', noSelection: 'Select a node to inspect raw evidence',
     raw: 'Open raw Session', timeline: 'Execution timeline', coverage: 'Evidence coverage', diagnosis: 'Diagnosis path',
     noDiagnosis: 'No diagnosis yet. Submit feedback to highlight candidate actions and real events.',
@@ -93,14 +93,14 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
   const [view, setView] = useState<ViewMode>('overview');
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [selection, setSelection] = useState<InspectorSelection>(null);
-  const [diagnosisOnly, setDiagnosisOnly] = useState(false);
+  const [diagnosisActionsOnly, setDiagnosisActionsOnly] = useState(false);
   const { fitView } = useReactFlow();
 
   useEffect(() => {
     setView('overview');
     setActiveActionId(null);
     setSelection(null);
-    setDiagnosisOnly(false);
+    setDiagnosisActionsOnly(false);
   }, [context.changeName, payload]);
 
   const activeAction = actions.find((action) => action.action_id === activeActionId);
@@ -114,7 +114,7 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
     if (view === 'overview') {
       const candidateIds = diagnosisActionIds(diagnosis);
       return actions
-        .filter((action) => !diagnosisOnly || candidateIds.has(action.action_id))
+        .filter((action) => !diagnosisActionsOnly || candidateIds.has(action.action_id))
         .map((action, index) => ({
           id: action.action_id,
           type: 'action',
@@ -129,7 +129,6 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
         }));
     }
     return visibleEvents
-      .filter((event) => !diagnosisOnly || isRelevantEvent(event, actions, diagnosis))
       .map((event, index) => ({
         id: event.node_id,
         type: 'event',
@@ -141,7 +140,7 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
           relevant: isRelevantEvent(event, actions, diagnosis),
         },
       }));
-  }, [actions, diagnosis, diagnosisOnly, t.events, view, visibleEvents]);
+  }, [actions, diagnosis, diagnosisActionsOnly, t.events, view, visibleEvents]);
 
   const flowEdges = useMemo<Edge[]>(() => {
     const ids = new Set(flowNodes.map((node) => node.id));
@@ -153,10 +152,10 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
         source: edge.from,
         target: edge.to,
         type: 'smoothstep',
-        animated: Boolean(diagnosisOnly),
+        animated: Boolean(diagnosisActionsOnly && view === 'overview'),
         style: { stroke: 'var(--gd-line)', strokeWidth: 1.4 },
       }));
-  }, [diagnosisOnly, flowNodes, payload, view]);
+  }, [diagnosisActionsOnly, flowNodes, payload, view]);
 
   useEffect(() => {
     const id = window.setTimeout(() => fitView({ padding: 0.22, duration: 320, maxZoom: 1.05 }), 20);
@@ -195,12 +194,13 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
       </div>
       <div className="gd-toolbar-actions">
         {view === 'action' && <button type="button" className="gd-button" onClick={() => { setView('overview'); setActiveActionId(null); }}>{t.back}</button>}
-        <button type="button" className={`gd-button ${diagnosisOnly ? 'is-active' : ''}`} onClick={() => setDiagnosisOnly((value) => !value)}>
-          {diagnosisOnly ? t.relevant : t.all}
-        </button>
+        {view === 'overview' && diagnosis?.available && <button type="button" className={`gd-button ${diagnosisActionsOnly ? 'is-active' : ''}`} onClick={() => setDiagnosisActionsOnly((value) => !value)}>
+          {diagnosisActionsOnly ? t.allActions : t.diagnosisActions}
+        </button>}
         <button type="button" className="gd-button" onClick={() => fitView({ padding: 0.22, duration: 320 })}>{t.fit}</button>
       </div>
     </header>
+    <DiagnosisPanel diagnosis={diagnosis} actions={actions} t={t} onAction={openAction} />
     <div className="gd-main">
       <div className="gd-canvas" aria-label={view === 'overview' ? t.overview : t.eventView}>
         {flowNodes.length ? <ReactFlow
@@ -221,7 +221,7 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
           <Background gap={18} size={1} color="var(--gd-grid)" />
           <Controls showInteractive={false} />
           <MiniMap zoomable pannable nodeColor={(node) => node.data?.kind === 'action' ? 'var(--gd-accent)' : 'var(--gd-event)'} />
-        </ReactFlow> : <div className="gd-empty">{diagnosisOnly ? t.noDiagnosis : 'No graph nodes'}</div>}
+        </ReactFlow> : <div className="gd-empty">{diagnosisActionsOnly ? t.noDiagnosis : 'No graph nodes'}</div>}
       </div>
       <aside className="gd-inspector">
         <div className="gd-panel-title">{t.inspector}</div>
@@ -231,11 +231,10 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
       </aside>
     </div>
     <footer className="gd-footer">
-      <section><div className="gd-panel-title">{t.timeline}</div><div className="gd-timeline">
+      <section><div className="gd-footer-heading"><div className="gd-panel-title">{t.timeline}</div>{view === 'action' && <button type="button" className="gd-button gd-timeline-back" onClick={() => { setView('overview'); setActiveActionId(null); }}>{t.back}</button>}</div><div className="gd-timeline">
         {actions.map((action) => <button key={action.action_id} type="button" className={`gd-timeline-step ${action.action_id === activeActionId ? 'is-active' : ''}`} onClick={() => openAction(action.action_id)}>{action.label}</button>)}
       </div></section>
       <section><div className="gd-panel-title">{t.coverage}</div><strong>{coveredEvents.size} / {allEvents.length}</strong><span className="gd-muted"> {t.events}</span></section>
-      <DiagnosisPanel diagnosis={diagnosis} actions={actions} t={t} onAction={openAction} />
     </footer>
   </section>;
 }
@@ -265,15 +264,15 @@ function EventInspector({ event, action, t, onRaw }: { event: GraphNode; action?
 }
 
 function DiagnosisPanel({ diagnosis, actions, t, onAction }: { diagnosis?: FeedbackDiagnosis; actions: ActionNode[]; t: Labels; onAction: (id: string) => void }) {
-  return <section className="gd-diagnosis"><div className="gd-panel-title">{t.diagnosis}</div>
-    {!diagnosis?.available && <div className="gd-muted">{t.noDiagnosis}</div>}
-    {diagnosis?.available && <>
+  if (!diagnosis?.available) return null;
+  return <section className="gd-diagnosis gd-diagnosis-top"><div className="gd-panel-title">{t.diagnosis}</div>
+    <>
       <p>{diagnosis.summary || '—'}</p>
       {(diagnosis.suspicious_actions || []).map((item) => {
         const action = actions.find((candidate) => candidate.action_id === item.action_id);
         return action ? <button type="button" className="gd-diagnosis-link" key={action.action_id} onClick={() => onAction(action.action_id)}>{action.label} · {item.reason || 'candidate'}</button> : null;
       })}
-    </>}
+    </>
   </section>;
 }
 
