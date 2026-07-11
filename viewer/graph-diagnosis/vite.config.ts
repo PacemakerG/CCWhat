@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   base: '/static/graph-diagnosis/',
+  define: {
+    process: JSON.stringify({ env: { NODE_ENV: 'production' } }),
+  },
   build: {
     emptyOutDir: true,
     outDir: '../static/graph-diagnosis',

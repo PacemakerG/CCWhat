@@ -19,8 +19,8 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertIn('id="openspecGraphContent"', html)
         self.assertIn("function loadOpenSpecGraph()", html)
         self.assertIn("/api/openspec-graph/", html)
-        self.assertIn('href="/static/graph-diagnosis/graph-diagnosis.css"', html)
-        self.assertIn('src="/static/graph-diagnosis/graph-diagnosis.js"', html)
+        self.assertIn('href="/static/graph-diagnosis/graph-diagnosis.css?v=runtime-fix-1"', html)
+        self.assertIn('src="/static/graph-diagnosis/graph-diagnosis.js?v=runtime-fix-1"', html)
         self.assertIn('id="graph-diagnosis-root"', html)
         self.assertIn("window.CCWhatGraphDiagnosis.mount", html)
         self.assertIn("ccwhat:navigate-to-event", html)
@@ -43,6 +43,7 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertTrue((GRAPH_DIAGNOSIS_DIR / "src" / "GraphDiagnosisApp.tsx").exists())
         self.assertTrue((GRAPH_DIAGNOSIS_STATIC_DIR / "graph-diagnosis.js").exists())
         self.assertTrue((GRAPH_DIAGNOSIS_STATIC_DIR / "graph-diagnosis.css").exists())
+        self.assertIn("CCWhatGraphDiagnosis", (GRAPH_DIAGNOSIS_STATIC_DIR / "graph-diagnosis.js").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
