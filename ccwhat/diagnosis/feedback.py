@@ -13,6 +13,8 @@ from ccwhat.diagnosis.precheck import run_prechecks
 
 
 MAX_TEXT_PREVIEW = 700
+MAX_SUSPICIOUS_ACTIONS = 5
+MAX_SUSPICIOUS_EVENTS = 15
 _MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*$")
 _TASK_CHECKLIST = re.compile(r"^-\s*\[[ xX]\]\s+\S")
 
@@ -189,6 +191,8 @@ def validate_graph_attribution_result(
     suspicious_actions = []
     seen_actions: set[str] = set()
     for item in _dict_list(value.get("suspicious_actions")):
+        if len(suspicious_actions) >= MAX_SUSPICIOUS_ACTIONS:
+            break
         action_id = str(item.get("action_id") or "")
         if action_id not in actions:
             if action_id:
@@ -228,7 +232,10 @@ def validate_graph_attribution_result(
 
     suspicious_events = []
     seen_events: set[str] = set()
+    selected_action_ids = set(seen_actions)
     for item in _dict_list(value.get("suspicious_events")):
+        if len(suspicious_events) >= MAX_SUSPICIOUS_EVENTS:
+            break
         event_id = str(item.get("event_id") or "")
         if event_id not in events:
             if event_id:
@@ -239,13 +246,21 @@ def validate_graph_attribution_result(
         seen_events.add(event_id)
         requested_action = str(item.get("action_id") or "")
         actual_actions = event_actions.get(event_id, [])
+        if not actual_actions:
+            missing.append(f"Analyzer referenced Event ID without an Action mapping: {event_id}")
+            continue
         adjusted = False
-        if actual_actions and requested_action not in actual_actions:
-            requested_action = actual_actions[0]
+        if requested_action not in actual_actions:
+            requested_action = next(
+                (action_id for action_id in actual_actions if action_id in selected_action_ids),
+                actual_actions[0],
+            )
             adjusted = True
-        elif requested_action not in actions:
-            requested_action = actual_actions[0] if actual_actions else ""
-            adjusted = bool(actual_actions)
+        if requested_action not in selected_action_ids:
+            missing.append(
+                f"Analyzer referenced Event ID outside selected suspicious Actions: {event_id} -> {requested_action}"
+            )
+            continue
         row = {
             "event_id": event_id,
             "action_id": requested_action or None,

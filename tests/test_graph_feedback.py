@@ -84,6 +84,10 @@ class GraphFeedbackTests(unittest.TestCase):
         self.assertIn("precheck_finding_ids", prompt)
         self.assertIn("document_refs", prompt)
         self.assertIn("文档引用不得使用行号", prompt)
+        self.assertIn("可疑 Action 为 0～5 个", prompt)
+        self.assertIn("全部可疑 Event 最多 15 个", prompt)
+        self.assertIn("后续候选缺少独立证据时停止输出", prompt)
+        self.assertIn("不输出候选分数", prompt)
 
     def test_prompt_passes_paths_and_findings_without_graph_body(self) -> None:
         with _diagnosis_files() as paths:
@@ -137,6 +141,59 @@ class GraphFeedbackTests(unittest.TestCase):
         self.assertTrue(result["suspicious_events"][0]["mapping_adjusted"])
         self.assertTrue(any("A99" in item for item in result["missing_evidence"]))
         self.assertTrue(any("E999" in item for item in result["missing_evidence"]))
+
+    def test_validate_enforces_candidate_caps_while_preserving_model_order(self) -> None:
+        action_graph = {"actions": [], "edges": []}
+        event_graph = {"nodes": [], "edges": []}
+        model_actions = []
+        model_events = []
+        for action_index in range(6):
+            action_id = f"A{action_index}"
+            event_ids = []
+            model_actions.append({"action_id": action_id, "reason": f"candidate {action_index}"})
+            for event_index in range(3):
+                event_id = f"E{action_index}-{event_index}"
+                event_ids.append(event_id)
+                event_graph["nodes"].append({"node_id": event_id, "type": "assistant_text", "data": {}})
+                model_events.append({"event_id": event_id, "action_id": action_id, "reason": "evidence"})
+            action_graph["actions"].append({"action_id": action_id, "event_ids": event_ids})
+
+        result = validate_graph_attribution_result(
+            {
+                "suspicious_actions": model_actions,
+                "suspicious_events": model_events,
+                "missing_evidence": [],
+                "summary": "候选过多。",
+            },
+            action_graph,
+            event_graph,
+        )
+
+        self.assertEqual(
+            [item["action_id"] for item in result["suspicious_actions"]],
+            ["A0", "A1", "A2", "A3", "A4"],
+        )
+        self.assertEqual(len(result["suspicious_events"]), 15)
+        self.assertEqual(result["suspicious_events"][0]["event_id"], "E0-0")
+        self.assertEqual(result["suspicious_events"][-1]["event_id"], "E4-2")
+
+    def test_validate_drops_event_outside_selected_suspicious_actions(self) -> None:
+        result = validate_graph_attribution_result(
+            {
+                "suspicious_actions": [{"action_id": "A5", "reason": "只选择实现阶段"}],
+                "suspicious_events": [
+                    {"event_id": "E41", "action_id": "A6", "reason": "属于未选择阶段"},
+                ],
+                "missing_evidence": [],
+                "summary": "只保留已选 Action 的事件。",
+            },
+            ACTION_GRAPH,
+            EVENT_GRAPH,
+        )
+
+        self.assertEqual([item["action_id"] for item in result["suspicious_actions"]], ["A5"])
+        self.assertFalse(result["suspicious_events"])
+        self.assertTrue(any("outside selected suspicious Actions" in item for item in result["missing_evidence"]))
 
     def test_validate_preserves_all_supported_evidence_reference_types(self) -> None:
         precheck_findings = [{

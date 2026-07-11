@@ -8,7 +8,7 @@
 2. 理解用户反馈，并优先检查 `precheck_findings` 指向的 Action/Event。
 3. 按 Event ID 只读 `event_graph_path` 中需要的事件；不要一次复制完整图。
 4. 需要理解目标时，只读 `change_root` 下的 proposal、specs、design 和 tasks。
-5. 输出最多 3 个可疑 Action、最多 8 个可疑 Event，并为可疑 Action 引用直接相关的 `precheck_finding` 或 OpenSpec 文档依据。
+5. 按可疑程度从高到低，输出能够解释用户反馈的最小候选集合：可疑 Action 为 0～5 个，全部可疑 Event 最多 15 个。
 6. 说明替代解释和缺失证据。
 
 约束：
@@ -16,6 +16,9 @@
 - 只允许使用只读文件工具读取上述路径；不得修改文件，不得执行项目命令。
 - 不得读取原始 Session、Runtime Task、Dataset、Git Diff、Git Tree、Snapshot 或其他变更证据。
 - 只能引用 Graph 中真实存在的 Action ID 和 Event ID，不得创建新 ID。
+- 每个可疑 Action 只引用直接相关、真实归属于该 Action 的可疑 Event。
+- 不得为了达到数量上限而补充证据不足的候选；后续候选缺少独立证据时停止输出。
+- 不输出候选分数；数组顺序即从高到低的可疑程度顺序。
 - `precheck_findings` 只能作为显性事实，仍需判断它与用户反馈是否相关。
 - `precheck_finding_ids` 只能引用输入中真实存在的 `precheck_finding_id`。
 - OpenSpec 文档只作为诊断依据，不得输出为新的可疑 Action/Event。

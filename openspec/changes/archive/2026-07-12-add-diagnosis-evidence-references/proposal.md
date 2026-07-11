@@ -8,6 +8,7 @@
 - 将 P0 显性异常标识统一为 `precheck_finding_id: precheck-finding-NNN`。
 - 后端校验 Action、Event、`precheck_finding` 和 OpenSpec 文档引用，删除无效引用并记录 `missing_evidence`。
 - 前端在现有诊断详情中简单展示被引用的 `precheck_finding` 和文档依据，保持粗图到细图的核心交互。
+- 候选输出改为按可疑程度排序的动态最小集合：0～5 个 Action、最多 15 个 Event，不引入数值打分。
 - 不新增诊断规则，不修改 Action Graph/Event Graph，不增加 LLM 调用次数。
 
 ## Capabilities

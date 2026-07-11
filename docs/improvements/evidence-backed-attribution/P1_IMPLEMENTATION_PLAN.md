@@ -20,6 +20,13 @@ Agent 输出 suspicious_actions / suspicious_events 和证据引用
 
 后端只验证引用真实性，不判断模型诊断是否正确。
 
+候选输出采用动态最小集合，不做 Top K 打分：
+
+- 按可疑程度从高到低排列。
+- 可疑 Action 输出 0～5 个，全部可疑 Event 最多 15 个。
+- 每个 Action 只引用直接相关且真实归属于它的 Event。
+- 后续候选缺少独立证据时停止，不为达到上限补充候选。
+
 ## 2. JSON 字段
 
 保留现有输出结构，只给 `suspicious_actions` 增加两个可选字段：

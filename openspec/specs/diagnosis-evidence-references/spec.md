@@ -24,6 +24,31 @@
 - **THEN** Agent SHALL 在 `document_refs` 中输出相对 change root 的 `path`、`kind` 和稳定 `anchor`
 - **AND** Agent SHALL NOT 使用行号作为引用位置
 
+### Requirement: 动态最小候选集合
+
+诊断 Agent SHALL 按可疑程度从高到低输出能够解释用户反馈的最小候选集合，不使用固定数量填充或数值打分。
+
+#### Scenario: 动态选择候选数量
+- **WHEN** Agent 完成证据分析
+- **THEN** `suspicious_actions` SHALL 包含 0 至 5 个候选
+- **AND** 全部 `suspicious_events` SHALL 不超过 15 个
+- **AND** 候选 SHALL 按可疑程度从高到低排列
+
+#### Scenario: 缺少独立证据时停止
+- **WHEN** 后续候选缺少独立证据
+- **THEN** Agent SHALL 停止输出更多候选
+- **AND** Agent SHALL NOT 为达到数量上限而补充证据不足的候选
+
+#### Scenario: Event 只归属于已选 Action
+- **WHEN** Agent 为可疑 Action 输出具体 Event
+- **THEN** 每个 `suspicious_event.action_id` SHALL 指向已输出的可疑 Action
+- **AND** Event SHALL 真实归属于该 Action 的 Event 范围
+
+#### Scenario: 后端强制数量和归属边界
+- **WHEN** Agent 输出超过数量上限或引用未入选 Action 的 Event
+- **THEN** 后端 SHALL 按原始顺序只保留前 5 个有效 Action 和前 15 个有效 Event
+- **AND** 后端 SHALL 删除不属于已保留 Action 的 Event
+
 ### Requirement: OpenSpec 文档引用类型
 
 系统 SHALL 根据 OpenSpec 文档类型校验 `document_refs` 的 `kind` 和 `anchor`。
@@ -84,4 +109,3 @@ Graph Diagnosis Viewer SHALL 在保持现有粗图到细图交互和主要布局
 - **AND** 用户 SHALL 能点击 Action 下钻到 Event Graph
 - **AND** 前端 SHALL 高亮该 Action 下的可疑 Event
 - **AND** 前端 SHALL NOT 将文档或 `precheck_finding` 创建为图节点或同级诊断对象
-
