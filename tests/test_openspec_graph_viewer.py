@@ -19,8 +19,8 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertIn('id="openspecGraphContent"', html)
         self.assertIn("function loadOpenSpecGraph()", html)
         self.assertIn("/api/openspec-graph/", html)
-        self.assertIn('href="/static/graph-diagnosis/graph-diagnosis.css?v=ui-refine-1"', html)
-        self.assertIn('src="/static/graph-diagnosis/graph-diagnosis.js?v=ui-refine-1"', html)
+        self.assertIn('href="/static/graph-diagnosis/graph-diagnosis.css?v=timeline-layout-1"', html)
+        self.assertIn('src="/static/graph-diagnosis/graph-diagnosis.js?v=timeline-layout-1"', html)
         self.assertIn('id="graph-diagnosis-root"', html)
         self.assertIn("window.CCWhatGraphDiagnosis.mount", html)
         self.assertIn("ccwhat:navigate-to-event", html)
@@ -48,6 +48,7 @@ class OpenSpecGraphViewerTests(unittest.TestCase):
         self.assertIn("gd-diagnosis-top", app_source)
         self.assertIn("diagnosisActions", app_source)
         self.assertIn("gd-timeline-back", app_source)
+        self.assertIn("gd-timeline-panel", app_source)
 
 
 if __name__ == "__main__":

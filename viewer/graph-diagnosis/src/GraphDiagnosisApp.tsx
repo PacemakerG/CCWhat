@@ -201,6 +201,7 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
       </div>
     </header>
     <DiagnosisPanel diagnosis={diagnosis} actions={actions} t={t} onAction={openAction} />
+    <TimelinePanel actions={actions} activeActionId={activeActionId} view={view} t={t} onAction={openAction} onOverview={() => { setView('overview'); setActiveActionId(null); }} />
     <div className="gd-main">
       <div className="gd-canvas" aria-label={view === 'overview' ? t.overview : t.eventView}>
         {flowNodes.length ? <ReactFlow
@@ -231,11 +232,31 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
       </aside>
     </div>
     <footer className="gd-footer">
-      <section><div className="gd-footer-heading"><div className="gd-panel-title">{t.timeline}</div>{view === 'action' && <button type="button" className="gd-button gd-timeline-back" onClick={() => { setView('overview'); setActiveActionId(null); }}>{t.back}</button>}</div><div className="gd-timeline">
-        {actions.map((action) => <button key={action.action_id} type="button" className={`gd-timeline-step ${action.action_id === activeActionId ? 'is-active' : ''}`} onClick={() => openAction(action.action_id)}>{action.label}</button>)}
-      </div></section>
       <section><div className="gd-panel-title">{t.coverage}</div><strong>{coveredEvents.size} / {allEvents.length}</strong><span className="gd-muted"> {t.events}</span></section>
     </footer>
+  </section>;
+}
+
+function TimelinePanel({
+  actions,
+  activeActionId,
+  view,
+  t,
+  onAction,
+  onOverview,
+}: {
+  actions: ActionNode[];
+  activeActionId: string | null;
+  view: ViewMode;
+  t: Labels;
+  onAction: (actionId: string) => void;
+  onOverview: () => void;
+}) {
+  return <section className="gd-timeline-panel">
+    <div className="gd-footer-heading"><div className="gd-panel-title">{t.timeline}</div>{view === 'action' && <button type="button" className="gd-button gd-timeline-back" onClick={onOverview}>{t.back}</button>}</div>
+    <div className="gd-timeline">
+      {actions.map((action) => <button key={action.action_id} type="button" className={`gd-timeline-step ${action.action_id === activeActionId ? 'is-active' : ''}`} onClick={() => onAction(action.action_id)}>{action.label}</button>)}
+    </div>
   </section>;
 }
 
