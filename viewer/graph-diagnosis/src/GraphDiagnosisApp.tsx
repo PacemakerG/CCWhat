@@ -3,7 +3,7 @@ import {
   Background,
   Controls,
   Handle,
-  MiniMap,
+  Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -95,9 +95,6 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
   const [selection, setSelection] = useState<InspectorSelection>(null);
   const [diagnosisActionsOnly, setDiagnosisActionsOnly] = useState(false);
   const { fitView } = useReactFlow();
-  const miniMapPalette = context.theme === 'dark'
-    ? { background: '#12171d', mask: 'rgba(8, 11, 15, 0.72)', action: '#57b5ff', event: '#536171', stroke: '#1e2a36' }
-    : { background: '#f7f9fb', mask: 'rgba(238, 242, 247, 0.72)', action: '#0071e3', event: '#8090a3', stroke: '#d1d9e3' };
 
   useEffect(() => {
     setView('overview');
@@ -224,15 +221,7 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
         >
           <Background gap={18} size={1} color="var(--gd-grid)" />
           <Controls showInteractive={false} />
-          <MiniMap
-            zoomable
-            pannable
-            bgColor={miniMapPalette.background}
-            maskColor={miniMapPalette.mask}
-            nodeColor={(node) => node.data?.kind === 'action' ? miniMapPalette.action : miniMapPalette.event}
-            nodeStrokeColor={miniMapPalette.stroke}
-            nodeBorderRadius={4}
-          />
+          <Panel position="bottom-right"><GraphNavigator actions={actions} activeAction={activeAction} selectedEventId={selectedEvent?.node_id} view={view} t={t} onAction={openAction} /></Panel>
         </ReactFlow> : <div className="gd-empty">{diagnosisActionsOnly ? t.noDiagnosis : 'No graph nodes'}</div>}
       </div>
       <aside className="gd-inspector">
@@ -245,6 +234,59 @@ function GraphDiagnosisCanvas({ context }: { context: GraphDiagnosisContext }) {
     <footer className="gd-footer">
       <section><div className="gd-panel-title">{t.coverage}</div><strong>{coveredEvents.size} / {allEvents.length}</strong><span className="gd-muted"> {t.events}</span></section>
     </footer>
+  </section>;
+}
+
+function GraphNavigator({
+  actions,
+  activeAction,
+  selectedEventId,
+  view,
+  t,
+  onAction,
+}: {
+  actions: ActionNode[];
+  activeAction?: ActionNode;
+  selectedEventId?: string;
+  view: ViewMode;
+  t: Labels;
+  onAction: (actionId: string) => void;
+}) {
+  const width = 232;
+  const step = actions.length > 1 ? 202 / (actions.length - 1) : 0;
+  const activeIndex = activeAction ? actions.findIndex((action) => action.action_id === activeAction.action_id) : -1;
+  const activeX = activeIndex >= 0 ? 15 + activeIndex * step : 0;
+  const eventIds = activeAction?.event_ids || [];
+  const eventStart = activeX - Math.min(23, Math.max(0, (eventIds.length - 1) * 3.4) / 2);
+
+  return <section className="gd-navigator" aria-label={t.overview}>
+    <div className="gd-navigator-title">{view === 'action' && activeAction ? `${activeAction.label} · ${eventIds.length} ${t.events}` : t.overview}</div>
+    <svg viewBox={`0 0 ${width} 78`} role="img" aria-label="Workflow navigator">
+      <path className="gd-navigator-line" d={`M 15 24 H ${width - 15}`} />
+      {view === 'action' && activeIndex >= 0 && <rect className="gd-navigator-viewport" x={activeX - 16} y="10" width="32" height="52" rx="5" />}
+      {actions.map((action, index) => {
+        const x = 15 + index * step;
+        const isActive = action.action_id === activeAction?.action_id;
+        const shortLabel = (action.label || action.type).replace(/\s?#\d+$/, '').slice(0, 3);
+        return <g
+          className={`gd-navigator-action ${isActive ? 'is-active' : ''}`}
+          key={action.action_id}
+          role="button"
+          tabIndex={0}
+          aria-label={action.label}
+          onClick={() => onAction(action.action_id)}
+          onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onAction(action.action_id); }}
+        >
+          <rect x={x - 10} y="18" width="20" height="12" rx="3" />
+          <text x={x} y="45" textAnchor="middle">{shortLabel}</text>
+        </g>;
+      })}
+      {view === 'action' && eventIds.map((eventId, index) => {
+        const x = eventStart + index * 3.4;
+        return <circle className={`gd-navigator-event ${eventId === selectedEventId ? 'is-selected' : ''}`} key={eventId} cx={x} cy="54" r="1.8" />;
+      })}
+    </svg>
+    <div className="gd-navigator-hint">{view === 'action' ? t.back : t.overview}</div>
   </section>;
 }
 
