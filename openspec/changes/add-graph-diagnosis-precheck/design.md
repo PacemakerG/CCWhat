@@ -9,7 +9,7 @@
 - 用程序稳定识别产物缺失和基础验证问题。
 - 让本地诊断 Agent 按绝对路径只读图和 OpenSpec 产物。
 - 保留一次 Analyzer 调用、现有诊断 JSON、ID 校验和前端交互。
-- 将 Finding 契约压缩到必要字段，正常检查不进入上下文。
+- 将 `precheck_finding` 契约压缩到必要字段，正常检查不进入上下文。
 
 **Non-Goals:**
 
@@ -26,19 +26,19 @@
 
 ### Decision: Prompt 传路径而不是 Graph 正文
 
-后端传入 `action_graph_path`、`event_graph_path`、`change_root`、用户反馈、Findings 和输出契约。Agent 先读 Action Graph，再按 Event ID 查询 Event Graph，并按需读取 OpenSpec 产物。
+后端传入 `action_graph_path`、`event_graph_path`、`change_root`、用户反馈、`precheck_findings` 和输出契约。Agent 先读 Action Graph，再按 Event ID 查询 Event Graph，并按需读取 OpenSpec 产物。
 
 不再调用 `build_compact_graph_context()`。Event Graph 已被 Marker 限定到当前 change，P0 不做可能丢失隐性错误的二次语义裁剪。
 
-### Decision: Finding 使用七个固定字段
+### Decision: precheck_finding 使用七个固定字段
 
-每条 Finding 只包含：
+每条 `precheck_finding` 只包含：
 
 ```text
-finding_id, type, action_id, event_ids, target, expected, observed
+precheck_finding_id, type, action_id, event_ids, target, expected, observed
 ```
 
-数组只包含异常，不包含正常检查。Finding 不携带 `status`、`confidence`、`score`、重复 Evidence 或自然语言 summary。
+数组只包含异常，不包含正常检查。`precheck_finding` 不携带 `status`、`confidence`、`score`、重复 Evidence 或自然语言 summary。
 
 ### Decision: 只实现两个 Precheck
 

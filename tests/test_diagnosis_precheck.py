@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ccwhat.diagnosis.precheck import FINDING_FIELDS, check_artifacts, check_basic_verify, run_prechecks
+from ccwhat.diagnosis.precheck import PRECHECK_FINDING_FIELDS, check_artifacts, check_basic_verify, run_prechecks
 
 
 def _action_graph(*actions: tuple[str, str, list[str]]) -> dict:
@@ -59,7 +59,7 @@ class ArtifactPrecheckTests(unittest.TestCase):
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0]["type"], "artifact_missing")
         self.assertEqual(findings[0]["action_id"], "tasks-1")
-        self.assertEqual(set(findings[0]), FINDING_FIELDS)
+        self.assertEqual(set(findings[0]), PRECHECK_FINDING_FIELDS)
 
     def test_valid_artifacts_produce_no_findings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -84,7 +84,7 @@ class ArtifactPrecheckTests(unittest.TestCase):
             graph = _action_graph(("proposal-1", "proposal", ["E1"]))
             findings = run_prechecks(tmp, graph, {"nodes": []})
 
-        self.assertEqual(findings[0]["finding_id"], "PF-001")
+        self.assertEqual(findings[0]["precheck_finding_id"], "precheck-finding-001")
 
 
 class BasicVerifyPrecheckTests(unittest.TestCase):

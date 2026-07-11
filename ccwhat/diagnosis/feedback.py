@@ -13,6 +13,8 @@ from ccwhat.diagnosis.precheck import run_prechecks
 
 
 MAX_TEXT_PREVIEW = 700
+_MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*$")
+_TASK_CHECKLIST = re.compile(r"^-\s*\[[ xX]\]\s+\S")
 
 
 def analyze_graph_feedback(
@@ -34,13 +36,14 @@ def analyze_graph_feedback(
     string values), one automatic format-fix attempt is made.  If that also
     fails the diagnosis gracefully degrades to ``_unavailable_result``.
     """
+    precheck_findings = run_prechecks(change_root, action_graph, event_graph)
     try:
         prompt = build_graph_attribution_prompt(
             feedback,
             action_graph_path=action_graph_path,
             event_graph_path=event_graph_path,
             change_root=change_root,
-            precheck_findings=run_prechecks(change_root, action_graph, event_graph),
+            precheck_findings=precheck_findings,
         )
     except ValueError as exc:
         return _unavailable_result("diagnosis_input_unavailable", str(exc))
@@ -76,7 +79,13 @@ def analyze_graph_feedback(
             return _unavailable_result("invalid_analyzer_json", str(exc2))
         elapsed_ms += fix_elapsed
 
-    result = validate_graph_attribution_result(parsed, action_graph, event_graph)
+    result = validate_graph_attribution_result(
+        parsed,
+        action_graph,
+        event_graph,
+        precheck_findings=precheck_findings,
+        change_root=change_root,
+    )
     result["elapsed_ms"] = elapsed_ms
     result["analyzer_agent"] = analyzer_agent or "claude"
     return result
@@ -150,7 +159,17 @@ def validate_graph_attribution_result(
     value: dict[str, Any],
     action_graph: dict[str, Any],
     event_graph: dict[str, Any],
+    *,
+    precheck_findings: list[dict[str, Any]] | None = None,
+    change_root: str | Path | None = None,
 ) -> dict[str, Any]:
+    precheck_findings = list(precheck_findings or [])
+    precheck_by_id = {
+        str(item.get("precheck_finding_id")): item
+        for item in precheck_findings
+        if isinstance(item, dict) and item.get("precheck_finding_id")
+    }
+    resolved_change_root = Path(change_root).expanduser().resolve() if change_root is not None else None
     actions = {
         str(item.get("action_id")): item
         for item in action_graph.get("actions", [])
@@ -178,10 +197,34 @@ def validate_graph_attribution_result(
         if action_id in seen_actions:
             continue
         seen_actions.add(action_id)
-        suspicious_actions.append({
+        row = {
             "action_id": action_id,
             "reason": _clip(item.get("reason"), MAX_TEXT_PREVIEW),
-        })
+        }
+        precheck_finding_ids = []
+        for precheck_finding_id in _dedupe(_string_list(item.get("precheck_finding_ids"))):
+            if precheck_finding_id not in precheck_by_id:
+                missing.append(f"Analyzer referenced unknown precheck_finding_id: {precheck_finding_id}")
+                continue
+            precheck_finding_ids.append(precheck_finding_id)
+        if precheck_finding_ids:
+            row["precheck_finding_ids"] = precheck_finding_ids
+
+        document_refs = []
+        seen_document_refs: set[tuple[str, str, str | None]] = set()
+        for document_ref in _dict_list(item.get("document_refs")):
+            normalized, error = _validate_document_ref(document_ref, resolved_change_root)
+            if normalized is None:
+                missing.append(error)
+                continue
+            key = (normalized["path"], normalized["kind"], normalized["anchor"])
+            if key in seen_document_refs:
+                continue
+            seen_document_refs.add(key)
+            document_refs.append(normalized)
+        if document_refs:
+            row["document_refs"] = document_refs
+        suspicious_actions.append(row)
 
     suspicious_events = []
     seen_events: set[str] = set()
@@ -228,6 +271,7 @@ def validate_graph_attribution_result(
         "symptoms": symptoms,
         "suspicious_actions": suspicious_actions,
         "suspicious_events": suspicious_events,
+        "precheck_findings": precheck_findings,
         "missing_evidence": _dedupe(missing),
         "summary": _clip(value.get("summary"), 2000) or "No diagnosis summary was returned.",
     }
@@ -252,6 +296,65 @@ def _dict_list(value: Any) -> list[dict[str, Any]]:
 
 def _string_list(value: Any) -> list[str]:
     return [str(item) for item in value if item] if isinstance(value, list) else []
+
+
+def _validate_document_ref(
+    value: dict[str, Any],
+    change_root: Path | None,
+) -> tuple[dict[str, Any] | None, str]:
+    path_text = str(value.get("path") or "").strip()
+    kind = str(value.get("kind") or "").strip()
+    anchor_value = value.get("anchor")
+    anchor = str(anchor_value).strip() if anchor_value is not None else None
+    label = f"path={path_text or '<empty>'}, kind={kind or '<empty>'}, anchor={anchor!r}"
+
+    if change_root is None:
+        return None, f"Analyzer document_ref cannot be validated without change root: {label}"
+    if not path_text or "\\" in path_text:
+        return None, f"Analyzer referenced invalid document_ref path: {label}"
+
+    relative_path = Path(path_text)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        return None, f"Analyzer referenced out-of-scope document_ref path: {label}"
+
+    try:
+        document_path = (change_root / relative_path).resolve()
+        normalized_path = document_path.relative_to(change_root).as_posix()
+    except (OSError, ValueError):
+        return None, f"Analyzer referenced out-of-scope document_ref path: {label}"
+    if not document_path.is_file():
+        return None, f"Analyzer referenced missing document_ref file: {label}"
+
+    parts = Path(normalized_path).parts
+    try:
+        text = document_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None, f"Analyzer could not read document_ref file: {label}"
+    headings = _markdown_headings(text)
+    if normalized_path in {"proposal.md", "design.md"}:
+        if kind == "document" and anchor is None:
+            return {"path": normalized_path, "kind": kind, "anchor": None}, ""
+        if kind == "section" and anchor and anchor in headings:
+            return {"path": normalized_path, "kind": kind, "anchor": anchor}, ""
+    elif normalized_path == "tasks.md":
+        tasks = {line.strip() for line in text.splitlines() if _TASK_CHECKLIST.match(line.strip())}
+        if kind == "task" and anchor and anchor in tasks:
+            return {"path": normalized_path, "kind": kind, "anchor": anchor}, ""
+    elif len(parts) == 3 and parts[0] == "specs" and parts[2] == "spec.md":
+        if kind == "requirement" and anchor and anchor.startswith("Requirement:") and anchor in headings:
+            return {"path": normalized_path, "kind": kind, "anchor": anchor}, ""
+
+    return None, f"Analyzer referenced invalid document_ref kind or anchor: {label}"
+
+
+def _markdown_headings(text: str) -> set[str]:
+    result = set()
+    for line in text.splitlines():
+        match = _MARKDOWN_HEADING.match(line)
+        if not match:
+            continue
+        result.add(re.sub(r"\s+#+\s*$", "", match.group(1)).strip())
+    return result
 
 
 def _clip(value: Any, limit: int) -> str | None:

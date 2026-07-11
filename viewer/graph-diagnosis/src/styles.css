@@ -61,9 +61,14 @@
 .gd-diagnosis-top { display:grid; grid-template-columns:112px minmax(0, 1fr); column-gap:14px; align-items:start; padding:12px 14px; border-bottom:1px solid var(--gd-border); background:color-mix(in srgb, var(--gd-accent) 4%, var(--gd-bg)); }
 .gd-diagnosis-top .gd-panel-title { margin-top:3px; }
 .gd-diagnosis-top p { margin:0 0 7px; grid-column:2; }
-.gd-diagnosis-top .gd-diagnosis-link { grid-column:2; }
+.gd-diagnosis-top .gd-diagnosis-item { grid-column:2; }
 .gd-diagnosis p { margin:0 0 8px; color:var(--gd-text); }
 .gd-diagnosis-link { display:block; width:100%; text-align:left; border:0; border-top:1px solid var(--gd-border); border-radius:0; padding:6px 0; color:var(--gd-accent); font-size:11px; }
+.gd-diagnosis-evidence { display:grid; gap:4px; padding:2px 0 8px 10px; border-left:2px solid var(--gd-border); }
+.gd-diagnosis-evidence > strong { color:var(--gd-muted); font-size:9px; letter-spacing:.07em; text-transform:uppercase; }
+.gd-evidence-row { display:grid; grid-template-columns:minmax(84px, auto) 1fr; gap:8px; color:var(--gd-muted); font-size:10px; }
+.gd-evidence-row span:first-child { color:var(--gd-text); font-family:var(--font-mono, monospace); }
+.gd-evidence-row span:last-child { overflow-wrap:anywhere; }
 .react-flow__controls { box-shadow:none !important; border:1px solid var(--gd-border) !important; }
 .react-flow__controls-button { background:var(--gd-bg) !important; border-bottom-color:var(--gd-border) !important; fill:var(--gd-text) !important; }
 .gd-navigator { width:232px; padding:8px 10px 6px; border:1px solid var(--gd-border); border-radius:8px; background:color-mix(in srgb, var(--gd-bg) 92%, var(--gd-surface)); box-shadow:0 8px 24px rgba(0,0,0,.16); }
@@ -88,5 +93,6 @@
   .gd-footer section { border-right:0; border-bottom:1px solid var(--gd-border); }
   .gd-footer section:last-child { border-bottom:0; }
   .gd-diagnosis-top { grid-template-columns:1fr; }
-  .gd-diagnosis-top p, .gd-diagnosis-top .gd-diagnosis-link { grid-column:1; }
+  .gd-diagnosis-top p, .gd-diagnosis-top .gd-diagnosis-item { grid-column:1; }
+  .gd-evidence-row { grid-template-columns:1fr; gap:2px; }
 }

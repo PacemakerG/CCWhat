@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from unittest.mock import patch
 
 from ccwhat.diagnosis.feedback import (
     analyze_graph_feedback,
@@ -50,6 +51,14 @@ def _diagnosis_files():
         change_root = Path(tmp) / "openspec/changes/demo"
         graph_dir = change_root / "graph"
         graph_dir.mkdir(parents=True)
+        (change_root / "specs/button-shape").mkdir(parents=True)
+        (change_root / "proposal.md").write_text("## Why\n\n调整按钮形状。\n", encoding="utf-8")
+        (change_root / "design.md").write_text("## Decisions\n\n使用现有样式。\n", encoding="utf-8")
+        (change_root / "tasks.md").write_text("- [x] 修改按钮样式\n", encoding="utf-8")
+        (change_root / "specs/button-shape/spec.md").write_text(
+            "### Requirement: Button shape\n\n按钮必须使用指定形状。\n",
+            encoding="utf-8",
+        )
         action_path = graph_dir / "action_graph.json"
         event_path = graph_dir / "event_graph.json"
         action_path.write_text(json.dumps(ACTION_GRAPH), encoding="utf-8")
@@ -72,6 +81,9 @@ class GraphFeedbackTests(unittest.TestCase):
 
         self.assertIn("必须使用简体中文", prompt)
         self.assertIn("Action ID 和 Event ID 保持原样", prompt)
+        self.assertIn("precheck_finding_ids", prompt)
+        self.assertIn("document_refs", prompt)
+        self.assertIn("文档引用不得使用行号", prompt)
 
     def test_prompt_passes_paths_and_findings_without_graph_body(self) -> None:
         with _diagnosis_files() as paths:
@@ -79,7 +91,7 @@ class GraphFeedbackTests(unittest.TestCase):
                 "按钮没有生效",
                 **paths,
                 precheck_findings=[{
-                    "finding_id": "PF-001",
+                    "precheck_finding_id": "precheck-finding-001",
                     "type": "verification_missing",
                     "action_id": "A5",
                     "event_ids": ["E40"],
@@ -126,6 +138,146 @@ class GraphFeedbackTests(unittest.TestCase):
         self.assertTrue(any("A99" in item for item in result["missing_evidence"]))
         self.assertTrue(any("E999" in item for item in result["missing_evidence"]))
 
+    def test_validate_preserves_all_supported_evidence_reference_types(self) -> None:
+        precheck_findings = [{
+            "precheck_finding_id": "precheck-finding-001",
+            "type": "verification_missing",
+            "action_id": "A5",
+            "event_ids": ["E40"],
+            "target": "routing.py",
+            "expected": "修改后验证",
+            "observed": "没有验证",
+        }]
+        with _diagnosis_files() as paths:
+            result = validate_graph_attribution_result(
+                {
+                    "suspicious_actions": [{
+                        "action_id": "A5",
+                        "reason": "证据可追溯",
+                        "precheck_finding_ids": ["precheck-finding-001"],
+                        "document_refs": [
+                            {
+                                "path": "specs/button-shape/spec.md",
+                                "kind": "requirement",
+                                "anchor": "Requirement: Button shape",
+                            },
+                            {"path": "proposal.md", "kind": "section", "anchor": "Why"},
+                            {"path": "proposal.md", "kind": "document", "anchor": None},
+                            {"path": "design.md", "kind": "section", "anchor": "Decisions"},
+                            {"path": "design.md", "kind": "document", "anchor": None},
+                            {"path": "tasks.md", "kind": "task", "anchor": "- [x] 修改按钮样式"},
+                        ],
+                    }],
+                    "suspicious_events": [],
+                    "missing_evidence": [],
+                    "summary": "引用有效。",
+                },
+                ACTION_GRAPH,
+                EVENT_GRAPH,
+                precheck_findings=precheck_findings,
+                change_root=paths["change_root"],
+            )
+
+        action = result["suspicious_actions"][0]
+        self.assertEqual(action["precheck_finding_ids"], ["precheck-finding-001"])
+        self.assertEqual(
+            [item["kind"] for item in action["document_refs"]],
+            ["requirement", "section", "document", "section", "document", "task"],
+        )
+        self.assertEqual(result["precheck_findings"], precheck_findings)
+        self.assertFalse(result["missing_evidence"])
+
+    def test_validate_drops_invalid_evidence_references_without_dropping_valid_ones(self) -> None:
+        precheck_findings = [{"precheck_finding_id": "precheck-finding-001", "type": "verification_missing"}]
+        with _diagnosis_files() as paths:
+            result = validate_graph_attribution_result(
+                {
+                    "suspicious_actions": [{
+                        "action_id": "A5",
+                        "reason": "混合引用",
+                        "precheck_finding_ids": ["precheck-finding-001", "precheck-finding-999"],
+                        "document_refs": [
+                            {"path": "proposal.md", "kind": "section", "anchor": "Why"},
+                            {"path": "proposal.md", "kind": "requirement", "anchor": "Why"},
+                            {"path": "design.md", "kind": "section", "anchor": "Missing"},
+                            {"path": "missing.md", "kind": "document", "anchor": None},
+                        ],
+                    }],
+                    "suspicious_events": [],
+                    "missing_evidence": [],
+                    "summary": "部分引用无效。",
+                },
+                ACTION_GRAPH,
+                EVENT_GRAPH,
+                precheck_findings=precheck_findings,
+                change_root=paths["change_root"],
+            )
+
+        action = result["suspicious_actions"][0]
+        self.assertEqual(action["precheck_finding_ids"], ["precheck-finding-001"])
+        self.assertEqual(action["document_refs"], [{"path": "proposal.md", "kind": "section", "anchor": "Why"}])
+        self.assertTrue(any("precheck-finding-999" in item for item in result["missing_evidence"]))
+        self.assertTrue(any("requirement" in item for item in result["missing_evidence"]))
+        self.assertTrue(any("Missing" in item for item in result["missing_evidence"]))
+        self.assertTrue(any("missing.md" in item for item in result["missing_evidence"]))
+
+    def test_validate_rejects_absolute_and_parent_document_paths(self) -> None:
+        with _diagnosis_files() as paths:
+            result = validate_graph_attribution_result(
+                {
+                    "suspicious_actions": [{
+                        "action_id": "A5",
+                        "reason": "越界引用",
+                        "document_refs": [
+                            {"path": "../proposal.md", "kind": "document", "anchor": None},
+                            {"path": str(paths["change_root"] / "proposal.md"), "kind": "document", "anchor": None},
+                        ],
+                    }],
+                    "suspicious_events": [],
+                    "missing_evidence": [],
+                    "summary": "引用越界。",
+                },
+                ACTION_GRAPH,
+                EVENT_GRAPH,
+                precheck_findings=[],
+                change_root=paths["change_root"],
+            )
+
+        self.assertNotIn("document_refs", result["suspicious_actions"][0])
+        self.assertEqual(len(result["missing_evidence"]), 2)
+
+    def test_validate_rejects_document_symlink_that_resolves_outside_change_root(self) -> None:
+        with _diagnosis_files() as paths:
+            outside = paths["change_root"].parent / "outside.md"
+            outside.write_text("## Why\n", encoding="utf-8")
+            proposal = paths["change_root"] / "proposal.md"
+            proposal.unlink()
+            try:
+                proposal.symlink_to(outside)
+            except OSError as exc:
+                self.skipTest(f"symlink unavailable: {exc}")
+            result = validate_graph_attribution_result(
+                {
+                    "suspicious_actions": [{
+                        "action_id": "A5",
+                        "reason": "符号链接越界",
+                        "document_refs": [
+                            {"path": "proposal.md", "kind": "document", "anchor": None},
+                        ],
+                    }],
+                    "suspicious_events": [],
+                    "missing_evidence": [],
+                    "summary": "引用越界。",
+                },
+                ACTION_GRAPH,
+                EVENT_GRAPH,
+                precheck_findings=[],
+                change_root=paths["change_root"],
+            )
+
+        self.assertNotIn("document_refs", result["suspicious_actions"][0])
+        self.assertTrue(any("out-of-scope" in item for item in result["missing_evidence"]))
+
     def test_analyze_reuses_local_analyzer_runner_once(self) -> None:
         raw = json.dumps({
             "symptoms": [{"type": "validation_failed", "summary": "test failed"}],
@@ -157,6 +309,48 @@ class GraphFeedbackTests(unittest.TestCase):
         self.assertEqual(calls[0][0][1], "-p")
         self.assertIn("The routing test failed", calls[0][1]["input"])
         self.assertIn("verification_missing", calls[0][1]["input"])
+
+    def test_analyze_runs_precheck_once_and_returns_the_same_findings(self) -> None:
+        precheck_findings = [{
+            "precheck_finding_id": "precheck-finding-001",
+            "type": "verification_missing",
+            "action_id": "A5",
+            "event_ids": ["E40"],
+            "target": "routing.py",
+            "expected": "修改后验证",
+            "observed": "没有验证",
+        }]
+        raw = json.dumps({
+            "suspicious_actions": [{
+                "action_id": "A5",
+                "reason": "缺少验证",
+                "precheck_finding_ids": ["precheck-finding-001"],
+            }],
+            "suspicious_events": [],
+            "missing_evidence": [],
+            "summary": "验证链路缺失。",
+        })
+
+        def runner(command, **kwargs):
+            return subprocess.CompletedProcess(command, 0, stdout=raw, stderr="")
+
+        with patch("ccwhat.diagnosis.feedback.run_prechecks", return_value=precheck_findings) as precheck:
+            with _diagnosis_files() as paths:
+                result = analyze_graph_feedback(
+                    feedback="修改后没有验证",
+                    action_graph=ACTION_GRAPH,
+                    event_graph=EVENT_GRAPH,
+                    **paths,
+                    analyzer_agent="claude",
+                    runner=runner,
+                )
+
+        precheck.assert_called_once()
+        self.assertEqual(result["precheck_findings"], precheck_findings)
+        self.assertEqual(
+            result["suspicious_actions"][0]["precheck_finding_ids"],
+            ["precheck-finding-001"],
+        )
 
     def test_analyzer_failure_returns_structured_unavailable_result(self) -> None:
         def runner(command, **kwargs):

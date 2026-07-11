@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any
 
 
-FINDING_FIELDS = {
-    "finding_id",
+PRECHECK_FINDING_FIELDS = {
+    "precheck_finding_id",
     "type",
     "action_id",
     "event_ids",
@@ -46,7 +46,7 @@ def run_prechecks(
         *check_basic_verify(action_graph, event_graph),
     ]
     for index, finding in enumerate(findings, 1):
-        finding["finding_id"] = f"PF-{index:03d}"
+        finding["precheck_finding_id"] = f"precheck-finding-{index:03d}"
     return findings
 
 
@@ -151,7 +151,7 @@ def _finding(
     observed: str,
 ) -> dict[str, Any]:
     return {
-        "finding_id": "",
+        "precheck_finding_id": "",
         "type": type,
         "action_id": action_id,
         "event_ids": event_ids,

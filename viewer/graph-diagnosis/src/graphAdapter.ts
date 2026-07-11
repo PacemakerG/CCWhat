@@ -25,11 +25,8 @@ export function diagnosisEventIds(diagnosis?: FeedbackDiagnosis): Set<string> {
 
 export function isRelevantEvent(
   event: GraphNode,
-  actions: ActionNode[],
+  _actions: ActionNode[],
   diagnosis?: FeedbackDiagnosis,
 ): boolean {
-  const eventIds = diagnosisEventIds(diagnosis);
-  if (eventIds.has(event.node_id)) return true;
-  const action = actionForEvent(actions, event.node_id);
-  return Boolean(action && diagnosisActionIds(diagnosis).has(action.action_id));
+  return diagnosisEventIds(diagnosis).has(event.node_id);
 }

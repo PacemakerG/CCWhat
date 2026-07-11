@@ -1,6 +1,6 @@
 # P1：诊断证据引用与可追溯展示
 
-> 状态：待评审。P1 只增强诊断结论与证据的引用关系，不新增诊断规则，不修改 Action Graph/Event Graph。
+> 状态：已完成。P1 只增强诊断结论与证据的引用关系，不新增诊断规则，不修改 Action Graph/Event Graph。
 
 ## 1. 目标与边界
 
@@ -108,7 +108,7 @@ Agent 只返回引用 ID。后端诊断响应附带本次程序生成的 `preche
 4. `document_refs`：
    - 禁止绝对路径和 `..`；
    - 路径解析后必须位于当前 change 目录；
-   - 只允许 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`；
+   - 只允许 `proposal.md`、`design.md`、`tasks.md`、`specs/*/spec.md`；
    - `kind` 必须与文档类型匹配；
    - Requirement 标题、章节标题或 checklist 文本必须真实存在；
    - `kind=document` 只允许 `proposal.md` 或 `design.md`，且 `anchor=null`。
@@ -159,7 +159,8 @@ Agent 只返回引用 ID。后端诊断响应附带本次程序生成的 `preche
 
 - `viewer/graph-diagnosis/src/types.ts`：增加两个可选字段、`precheck_findings` 辅助数据及引用类型。
 - `viewer/graph-diagnosis/src/GraphDiagnosisApp.tsx`：在现有诊断详情中展示依据。
-- `viewer/graph-diagnosis/src/graph-diagnosis.css`：仅补充诊断依据样式。
+- `viewer/graph-diagnosis/src/graphAdapter.ts`：只按 `suspicious_events` 高亮具体细图事件。
+- `viewer/graph-diagnosis/src/styles.css`：仅补充诊断依据样式。
 
 测试与文档：
 

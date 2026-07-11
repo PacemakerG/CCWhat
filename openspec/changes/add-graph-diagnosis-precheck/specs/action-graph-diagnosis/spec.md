@@ -12,7 +12,7 @@
 #### Scenario: Agent 按需读取证据
 - **WHEN** 本地诊断 Agent 开始分析
 - **THEN** Agent SHALL 先读取 Action Graph
-- **AND** Agent SHALL 根据用户反馈和 Finding 引用按 Event ID 查询 Event Graph
+- **AND** Agent SHALL 根据用户反馈和 `precheck_findings` 引用按 Event ID 查询 Event Graph
 - **AND** Agent SHALL 在需要理解需求时读取 change root 中的 proposal、specs、design 或 tasks
 
 #### Scenario: 只读范围受控

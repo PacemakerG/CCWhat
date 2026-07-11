@@ -47,6 +47,7 @@ const copy = {
     overview: '总览', eventView: '事件证据', fit: '适配画布', diagnosisActions: '仅诊断相关粗节点', allActions: '显示全部粗节点',
     events: '事件', inspector: '节点检查器', noSelection: '选择一个节点查看原始证据',
     raw: '查看原始 Session', timeline: '执行时间线', coverage: '证据覆盖', diagnosis: '诊断路径',
+    evidence: '诊断依据', wholeDocument: '整个文件',
     noDiagnosis: '尚未生成诊断。提交反馈后，这里会高亮候选 Action 和真实事件。',
     action: 'Action', type: '类型', status: '状态', time: '时间', files: '文件', command: '命令',
     toolInput: '工具输入', result: '工具结果', source: '原始引用', back: '返回总览',
@@ -55,6 +56,7 @@ const copy = {
     overview: 'Overview', eventView: 'Event evidence', fit: 'Fit view', diagnosisActions: 'Diagnosis actions only', allActions: 'Show all actions',
     events: 'events', inspector: 'Node inspector', noSelection: 'Select a node to inspect raw evidence',
     raw: 'Open raw Session', timeline: 'Execution timeline', coverage: 'Evidence coverage', diagnosis: 'Diagnosis path',
+    evidence: 'Evidence', wholeDocument: 'Whole document',
     noDiagnosis: 'No diagnosis yet. Submit feedback to highlight candidate actions and real events.',
     action: 'Action', type: 'Type', status: 'Status', time: 'Time', files: 'Files', command: 'Command',
     toolInput: 'Tool input', result: 'Tool result', source: 'Raw reference', back: 'Back to overview',
@@ -340,12 +342,32 @@ function EventInspector({ event, action, t, onRaw }: { event: GraphNode; action?
 
 function DiagnosisPanel({ diagnosis, actions, t, onAction }: { diagnosis?: FeedbackDiagnosis; actions: ActionNode[]; t: Labels; onAction: (id: string) => void }) {
   if (!diagnosis?.available) return null;
+  const precheckFindings = new Map((diagnosis.precheck_findings || [])
+    .map((item) => [item.precheck_finding_id, item]));
   return <section className="gd-diagnosis gd-diagnosis-top"><div className="gd-panel-title">{t.diagnosis}</div>
     <>
       <p>{diagnosis.summary || '—'}</p>
       {(diagnosis.suspicious_actions || []).map((item) => {
         const action = actions.find((candidate) => candidate.action_id === item.action_id);
-        return action ? <button type="button" className="gd-diagnosis-link" key={action.action_id} onClick={() => onAction(action.action_id)}>{action.label} · {item.reason || 'candidate'}</button> : null;
+        if (!action) return null;
+        const findings = (item.precheck_finding_ids || [])
+          .map((id) => precheckFindings.get(id))
+          .filter((finding) => Boolean(finding));
+        const documentRefs = item.document_refs || [];
+        return <div className="gd-diagnosis-item" key={action.action_id}>
+          <button type="button" className="gd-diagnosis-link" onClick={() => onAction(action.action_id)}>{action.label} · {item.reason || 'candidate'}</button>
+          {(findings.length > 0 || documentRefs.length > 0) && <div className="gd-diagnosis-evidence">
+            <strong>{t.evidence}</strong>
+            {findings.map((finding) => finding && <div className="gd-evidence-row" key={finding.precheck_finding_id}>
+              <span>{finding.type}</span>
+              <span>{[finding.expected, finding.observed].filter(Boolean).join(' → ')}</span>
+            </div>)}
+            {documentRefs.map((ref) => <div className="gd-evidence-row" key={`${ref.path}:${ref.kind}:${ref.anchor || ''}`}>
+              <span>{ref.kind}</span>
+              <span>{ref.path} · {ref.anchor || t.wholeDocument}</span>
+            </div>)}
+          </div>}
+        </div>;
       })}
     </>
   </section>;
