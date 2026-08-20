@@ -13,6 +13,7 @@ MANIFEST_PATH = "manifest.json"
 DATASET_JSONL_PATH = "dataset.jsonl"
 SCORES_JSONL_PATH = "scores.jsonl"
 TRACES_DIR = "traces"
+DIFFS_DIR = "diffs"
 CHANGE_KINDS = {"edit", "write", "patch", "command", "git_diff"}
 CHANGE_CONFIDENCES = {"high", "medium", "low"}
 PATCH_FORMATS = {"unified_diff", "apply_patch", "git_diff", "opencode_diff"}
@@ -76,6 +77,13 @@ class DatasetTraceRepoState(TypedDict):
     git_dirty_at_export: bool | None
 
 
+class DatasetTraceTaskDiff(TypedDict):
+    available: bool
+    source: str | None
+    confidence: str | None
+    path: str | None
+
+
 class DatasetChangeEvidence(TypedDict):
     change_id: str
     event_id: str
@@ -114,6 +122,7 @@ class DatasetTrace(TypedDict):
     errors: list[str]
     final_claim: str | None
     repo_state: DatasetTraceRepoState
+    task_diff: DatasetTraceTaskDiff
 
 
 class DatasetScoreRow(TypedDict, total=False):
@@ -135,6 +144,7 @@ class DatasetBundle:
     dataset_rows: list[DatasetItemRow]
     traces: dict[str, DatasetTrace]
     scores_rows: list[DatasetScoreRow] = field(default_factory=list)
+    diffs: dict[str, str] = field(default_factory=dict)
 
     def to_text_files(self) -> dict[str, str]:
         """Return normalized relative paths mapped to text content."""
@@ -145,6 +155,8 @@ class DatasetBundle:
         }
         for trace_id in sorted(self.traces):
             files[f"{TRACES_DIR}/{trace_id}.json"] = _json_dump(self.traces[trace_id])
+        for diff_path in sorted(self.diffs):
+            files[diff_path] = self.diffs[diff_path]
         return files
 
     def to_bytes_files(self) -> dict[str, bytes]:
@@ -189,4 +201,13 @@ def _jsonl_dump(rows: list[dict[str, Any]]) -> str:
     return "\n".join(json.dumps(row, ensure_ascii=False, sort_keys=True) for row in rows) + "\n"
 
 
-DatasetInputSource = Literal["auto", "manual", "edited"]
+@dataclass(frozen=True)
+class TaskDiffEvidence:
+    """High-confidence repository diff captured at an explicit runtime boundary."""
+
+    content: str
+    source: str = "isolated_git_index"
+    confidence: str = "high"
+
+
+DatasetInputSource = Literal["runtime", "auto", "manual", "edited"]

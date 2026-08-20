@@ -33,14 +33,18 @@ class TaskStaging:
         start_tree = index.write_tree()
 
         task = {
+            "schema": "ccwhat-runtime-task-v1",
             "task_id": task_id,
             "run_id": run.run_id,
             "agent": run.agent,
             "workspace": run.workspace,
+            "title": title,
+            "status": "recording",
             "started_at": utc_now(),
             "finished_at": None,
             "start_tree": start_tree,
             "end_tree": None,
+            "paths": {"task_diff": "task.diff"},
         }
         self._write_json(task_dir / "task.json", task)
         self.registry.set_active_task(run.run_id, task_id)
@@ -64,6 +68,7 @@ class TaskStaging:
 
         task["finished_at"] = utc_now()
         task["end_tree"] = end_tree
+        task["status"] = "finalized"
         self._write_json(task_dir / "task.json", task)
         self.registry.set_active_task(run.run_id, None)
         return task
@@ -74,6 +79,7 @@ class TaskStaging:
         task_dir = self._task_dir(run.run_id, run.active_task_id)
         task = self._read_json(task_dir / "task.json")
         task["finished_at"] = utc_now()
+        task["status"] = "aborted"
         self._write_json(task_dir / "task.json", task)
         self.registry.set_active_task(run.run_id, None)
         return task

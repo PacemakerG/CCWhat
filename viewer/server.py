@@ -780,6 +780,7 @@ class ViewerBackend:
         analyzer_timeout: float | None = None,
         adapter: AgentAdapter | None = None,
         dataset_registry_root: Path | None = None,
+        runtime_registry_root: Path | None = None,
     ) -> None:
         self.viewer_dir = viewer_dir
         self.projects_dir = projects_dir
@@ -790,6 +791,7 @@ class ViewerBackend:
         self.analyzer_timeout = analyzer_timeout
         self.adapter = adapter
         self.dataset_registry_root = dataset_registry_root
+        self.runtime_registry_root = runtime_registry_root
         self.report_store: dict[str, dict[str, Any]] = {}
         self.replay_store: dict[str, dict[str, Any]] = {}
 
@@ -1332,6 +1334,7 @@ class ViewerBackend:
                 payload=payload,
                 session=session,
                 registry_root=self.dataset_registry_root,
+                runtime_registry_root=self.runtime_registry_root,
             )
         except DatasetRegistryError as exc:
             return exc.status, {"ok": False, "error": str(exc)}
@@ -1408,6 +1411,7 @@ def create_app(
     analyzer_timeout: float | None = None,
     adapter: AgentAdapter | None = None,
     dataset_registry_root: Path | None = None,
+    runtime_registry_root: Path | None = None,
 ) -> FastAPI:
     config_path = config_path or (Path.home() / ".ccwhat" / "config.json")
     backend = ViewerBackend(
@@ -1420,6 +1424,7 @@ def create_app(
         analyzer_timeout=analyzer_timeout,
         adapter=adapter,
         dataset_registry_root=dataset_registry_root,
+        runtime_registry_root=runtime_registry_root,
     )
     app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
     app.state.viewer_backend = backend
@@ -1742,6 +1747,7 @@ def create_server(
     analyzer_timeout: float | None = None,
     adapter: AgentAdapter | None = None,
     dataset_registry_root: Path | None = None,
+    runtime_registry_root: Path | None = None,
 ) -> ViewerServer:
     config_path = config_path or (Path.home() / ".ccwhat" / "config.json")
     app = create_app(
@@ -1753,6 +1759,7 @@ def create_server(
         analyzer_timeout=analyzer_timeout,
         adapter=adapter,
         dataset_registry_root=dataset_registry_root,
+        runtime_registry_root=runtime_registry_root,
     )
     return ViewerServer(app, port)
 
@@ -1772,6 +1779,7 @@ def run_server(
     analyzer_timeout: float | None = None,
     adapter: AgentAdapter | None = None,
     dataset_registry_root: Path | None = None,
+    runtime_registry_root: Path | None = None,
 ) -> None:
     server = create_server(
         port,
@@ -1783,6 +1791,7 @@ def run_server(
         analyzer_timeout=analyzer_timeout,
         adapter=adapter,
         dataset_registry_root=dataset_registry_root,
+        runtime_registry_root=runtime_registry_root,
     )
     url = viewer_url(server.server_port)
     print(f"CCWhat viewer running at {url}")

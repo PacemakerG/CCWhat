@@ -12,6 +12,7 @@ from pathlib import Path
 from ccwhat.task_dataset import (
     DATASET_SCHEMA_VERSION,
     DatasetBuildError,
+    TaskDiffEvidence,
     build_dataset_bundle,
     validate_dataset,
     validate_dataset_path,
@@ -131,6 +132,12 @@ class TestTaskDatasetBuilder(unittest.TestCase):
         self.assertEqual(trace["patches"], [])
         self.assertEqual(trace["repo_state"]["base_commit"], None)
         self.assertEqual(trace["repo_state"]["head_commit"], None)
+        self.assertEqual(trace["task_diff"], {
+            "available": False,
+            "source": None,
+            "confidence": None,
+            "path": None,
+        })
 
         text_files = bundle.to_text_files()
         self.assertIn("manifest.json", text_files)
@@ -138,6 +145,29 @@ class TestTaskDatasetBuilder(unittest.TestCase):
         self.assertIn("scores.jsonl", text_files)
         self.assertIn("traces/trace-task-001.json", text_files)
         self.assertEqual(text_files["scores.jsonl"], "")
+
+    def test_runtime_diff_uses_same_schema_and_adds_diff_file(self) -> None:
+        metadata, events, segmentation = _fixture("codex")
+        diff = "diff --git a/src/app.py b/src/app.py\n-old\n+new\n"
+
+        bundle = build_dataset_bundle(
+            session_metadata=metadata,
+            events=events,
+            segmentation=segmentation,
+            task_source="runtimeTasks",
+            task_diffs={"task-001": TaskDiffEvidence(content=diff)},
+            created_at="2026-06-14T00:00:00Z",
+        )
+
+        trace = bundle.traces["trace-task-001"]
+        self.assertEqual(trace["task_diff"], {
+            "available": True,
+            "source": "isolated_git_index",
+            "confidence": "high",
+            "path": "diffs/trace-task-001.diff",
+        })
+        self.assertEqual(bundle.to_text_files()["diffs/trace-task-001.diff"], diff)
+        self.assertTrue(validate_dataset(bundle.to_bytes_files()).ok)
 
     def test_end_event_none_extends_to_session_end(self) -> None:
         metadata, events, segmentation = _fixture("claude")
@@ -219,6 +249,22 @@ class TestTaskDatasetValidator(unittest.TestCase):
         result = validate_dataset(files, directories={"traces/"})
         self.assertFalse(result.ok)
         self.assertTrue(any("missing trace path" in issue.message for issue in result.errors))
+
+    def test_runtime_diff_reference_missing(self) -> None:
+        metadata, events, segmentation = _fixture("codex")
+        bundle = build_dataset_bundle(
+            session_metadata=metadata,
+            events=events,
+            segmentation=segmentation,
+            task_diffs={"task-001": TaskDiffEvidence(content="")},
+        )
+        files = bundle.to_bytes_files()
+        files.pop("diffs/trace-task-001.diff")
+
+        result = validate_dataset(files)
+
+        self.assertFalse(result.ok)
+        self.assertTrue(any("missing task diff path" in issue.message for issue in result.errors))
 
     def test_task_id_mismatch(self) -> None:
         files = _bundle().to_bytes_files()

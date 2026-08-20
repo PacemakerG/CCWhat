@@ -173,14 +173,19 @@ def test_controller_start_finish_writes_runtime_task_staging() -> None:
         assert task["run_id"] == run.run_id
         assert task["agent"] == "claude"
         assert task["workspace"] == str(workspace.resolve())
+        assert task["schema"] == "ccwhat-runtime-task-v1"
+        assert task["title"] == "ignored runtime task"
+        assert task["status"] == "finalized"
+        assert task["paths"] == {"task_diff": "task.diff"}
         assert task["started_at"]
         assert task["finished_at"]
         assert task["start_tree"]
         assert task["end_tree"]
         assert task["start_tree"] != task["end_tree"]
         assert set(task.keys()) == {
-            "task_id", "run_id", "agent", "workspace",
+            "schema", "task_id", "run_id", "agent", "workspace", "title", "status",
             "started_at", "finished_at", "start_tree", "end_tree",
+            "paths",
         }
         assert (task_dir / "task.diff").exists()
         diff_text = (task_dir / "task.diff").read_text(encoding="utf-8")

@@ -1,9 +1,9 @@
 ## Purpose
 
-定义 Task Dataset v1 的后端核心数据契约、构建器和校验器，使 AgentLens 可以从已切分的 coding task 生成稳定、可保存、可导出、可复用的数据资产。
+定义 Task Dataset v1 的后端核心数据契约、构建器和校验器，使 CCWhat 可以从运行时或离线切分的 coding task 生成稳定、可保存、可导出、可复用的数据资产。
 ## Requirements
 ### Requirement: Dataset v1 文件契约
-Task Dataset Core SHALL 定义 `agentlens-dataset-v1` 文件集合，包含 `manifest.json`、`dataset.jsonl`、`traces/*.json` 和 `scores.jsonl`。
+Task Dataset Core SHALL 定义 `ccwhat-dataset-v1` 文件集合，包含 `manifest.json`、`dataset.jsonl`、`traces/*.json` 和 `scores.jsonl`，并允许运行时任务附带 `diffs/*.diff`。
 
 #### Scenario: 生成必需文件集合
 - **WHEN** 系统从已切分 Task 构建 Dataset
@@ -14,9 +14,9 @@ Task Dataset Core SHALL 定义 `agentlens-dataset-v1` 文件集合，包含 `man
 
 #### Scenario: manifest 描述数据包
 - **WHEN** Dataset 包含 N 个 task
-- **THEN** `manifest.json` SHALL 包含 `schema_version` 且值为 `agentlens-dataset-v1`
+- **THEN** `manifest.json` SHALL 包含 `schema_version` 且值为 `ccwhat-dataset-v1`
 - **AND** `manifest.json` SHALL 包含 `created_at`
-- **AND** `manifest.json` SHALL 包含 `tool` 且值为 `agentlens`
+- **AND** `manifest.json` SHALL 包含 `tool` 且值为 `ccwhat`
 - **AND** `manifest.json` SHALL 包含 session 信息
 - **AND** `manifest.json` SHALL 记录 `counts.dataset_items`
 - **AND** `manifest.json` SHALL 记录 `counts.traces`
@@ -89,6 +89,24 @@ Task Dataset Core SHALL 提供 builder，从 normalized session events 与已切
 - **WHEN** task 边界内只有 command 或 edit evidence 但没有原生 patch / diff 字段
 - **THEN** builder SHALL 可以生成 `changes` entry
 - **AND** builder SHALL NOT 生成 `patches` entry
+
+### Requirement: 运行时和离线切分使用统一 Dataset Schema
+Task Dataset Core SHALL 将运行时显式切分和历史 Session 离线切分视为 Task 边界的不同来源，并通过同一个 builder 生成 Dataset。
+
+#### Scenario: 运行时任务附带仓库 Diff
+- **WHEN** Task 由 `/ccwhat:start` 和 `/ccwhat:finish` 显式记录
+- **AND** 隔离 Git Index 已生成该 Task 的 `task.diff`
+- **THEN** trace 的 `task_diff.available` SHALL 为 `true`
+- **AND** `task_diff.source` SHALL 为 `isolated_git_index`
+- **AND** `task_diff.confidence` SHALL 为 `high`
+- **AND** `task_diff.path` SHALL 引用 Dataset 内对应的 `diffs/*.diff`
+
+#### Scenario: 离线任务不伪造仓库 Diff
+- **WHEN** Task 由自动切分或人工修正的历史 Session 边界生成
+- **THEN** trace SHALL 保留相同的 `task_diff` 对象
+- **AND** `task_diff.available` SHALL 为 `false`
+- **AND** `source`、`confidence` 和 `path` SHALL 为 `null`
+- **AND** 系统 SHALL NOT 把日志中的 Edit、Write 或 Patch 证据冒充为任务级仓库 Diff
 
 ### Requirement: Dataset validator 校验结构和引用
 Task Dataset Core SHALL 提供 validator，校验 Dataset v1 目录或 tar 包的结构、格式和引用一致性。

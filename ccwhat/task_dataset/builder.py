@@ -16,7 +16,7 @@ from ccwhat.task_segments.models import (
 )
 
 from .change_evidence import extract_change_evidence
-from .models import DATASET_SCHEMA_VERSION, DatasetBundle
+from .models import DATASET_SCHEMA_VERSION, DIFFS_DIR, DatasetBundle, TaskDiffEvidence
 
 
 class DatasetBuildError(ValueError):
@@ -29,6 +29,7 @@ def build_dataset_bundle(
     events: list[NormalizedEvent],
     segmentation: TaskSegmentationResult,
     task_source: str = "auto",
+    task_diffs: dict[str, TaskDiffEvidence] | None = None,
     created_at: str | None = None,
 ) -> DatasetBundle:
     """Build a Dataset v1 bundle from a TaskSegmentationResult."""
@@ -38,6 +39,7 @@ def build_dataset_bundle(
         tasks=segmentation.tasks,
         session_id=segmentation.session_id,
         task_source=task_source,
+        task_diffs=task_diffs,
         created_at=created_at,
     )
 
@@ -49,6 +51,7 @@ def build_dataset_bundle_from_segments(
     tasks: list[TaskSegment],
     session_id: str,
     task_source: str = "auto",
+    task_diffs: dict[str, TaskDiffEvidence] | None = None,
     created_at: str | None = None,
 ) -> DatasetBundle:
     """Build a Dataset v1 bundle from explicit task segments."""
@@ -87,6 +90,8 @@ def build_dataset_bundle_from_segments(
 
     dataset_rows = []
     traces = {}
+    diffs: dict[str, str] = {}
+    diff_evidence_by_task = task_diffs or {}
 
     for task in tasks:
         trace_id = f"trace-{task.task_id}"
@@ -94,6 +99,10 @@ def build_dataset_bundle_from_segments(
         task_events = _slice_events(events, event_index, task)
         evidence = _merge_evidence(task.evidence, task_events, repo_root=str(project_dir) if project_dir else None)
         changes, patches = extract_change_evidence(task_events, agent=agent)
+        diff_evidence = diff_evidence_by_task.get(task.task_id)
+        diff_path = f"{DIFFS_DIR}/{trace_id}.diff" if diff_evidence is not None else None
+        if diff_evidence is not None and diff_path is not None:
+            diffs[diff_path] = diff_evidence.content
 
         dataset_rows.append(
             {
@@ -149,6 +158,12 @@ def build_dataset_bundle_from_segments(
                 "head_commit": head_commit,
                 "git_dirty_at_export": git_dirty,
             },
+            "task_diff": {
+                "available": diff_evidence is not None,
+                "source": diff_evidence.source if diff_evidence is not None else None,
+                "confidence": diff_evidence.confidence if diff_evidence is not None else None,
+                "path": diff_path,
+            },
         }
 
     manifest = {
@@ -172,6 +187,7 @@ def build_dataset_bundle_from_segments(
         dataset_rows=dataset_rows,
         traces=traces,
         scores_rows=[],
+        diffs=diffs,
     )
 
 

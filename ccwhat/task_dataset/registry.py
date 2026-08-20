@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import re
 import shutil
 import tarfile
@@ -13,15 +14,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ccwhat.runtime.infra.registry import RunRegistry
 from ccwhat.task_segments.events import normalize_session_events
-from ccwhat.task_segments.models import EvidenceBundle, TaskSegment
+from ccwhat.task_segments.models import EvidenceBundle, NormalizedEvent, TaskSegment
 
 from .builder import DatasetBuildError, build_dataset_bundle_from_segments
+from .models import TaskDiffEvidence
 from .validator import validate_dataset_path
 
 OVERLAY_SCHEMA_VERSION = "task-trace-overlay-v1"
 TASK_SEGMENTATION_SCHEMA_VERSION = "task-segmentation-v1"
 DATASET_ID_RE = re.compile(r"^dataset-\d{8}-\d{6}-[0-9A-Za-z_-]+(?:-\d+)?$")
+RUNTIME_RUN_ID_RE = re.compile(r"^run-\d{8}-\d{6}-[0-9a-fA-F]{8}$")
+RUNTIME_TASK_ID_RE = re.compile(r"^task-\d{3,}$")
 
 
 class DatasetRegistryError(ValueError):
@@ -49,6 +54,7 @@ def save_task_dataset_from_request(
     payload: dict[str, Any],
     session: dict[str, Any],
     registry_root: Path | None = None,
+    runtime_registry_root: Path | None = None,
     now: datetime | None = None,
 ) -> SavedDataset:
     """Validate a viewer request, build a Dataset bundle, and save it."""
@@ -66,20 +72,23 @@ def save_task_dataset_from_request(
     if not event_ids:
         raise DatasetRegistryError("current session has no normalized events to align source trace")
 
-    tasks = _tasks_from_source(
+    metadata = _session_metadata(session)
+    tasks, task_diffs = _tasks_from_source(
         source=source,
         task_source=task_source,
         request_session_id=session_id,
-        event_ids=event_ids,
+        events=normalized_events,
+        session_metadata=metadata,
+        runtime_registry_root=runtime_registry_root,
     )
 
-    metadata = _session_metadata(session)
     bundle = build_dataset_bundle_from_segments(
         session_metadata=metadata,
         events=normalized_events,
         tasks=tasks,
         session_id=session_id,
         task_source=task_source,
+        task_diffs=task_diffs,
     )
 
     root = (registry_root or default_dataset_registry_root()).expanduser()
@@ -148,18 +157,30 @@ def _tasks_from_source(
     source: dict[str, Any],
     task_source: str,
     request_session_id: str,
-    event_ids: list[str],
-) -> list[TaskSegment]:
+    events: list[NormalizedEvent],
+    session_metadata: dict[str, Any],
+    runtime_registry_root: Path | None,
+) -> tuple[list[TaskSegment], dict[str, TaskDiffEvidence]]:
+    event_ids = [event.event_id for event in events]
     kind = str(source.get("kind") or "").strip()
     if task_source == "activeOverlay":
         if kind != "overlay":
             raise DatasetRegistryError("taskSource activeOverlay must use source.kind overlay")
-        return _overlay_tasks(source, request_session_id, event_ids)
+        return _overlay_tasks(source, request_session_id, event_ids), {}
     if task_source == "taskSegments":
         if kind != "taskSegments":
             raise DatasetRegistryError("taskSource taskSegments must use source.kind taskSegments")
-        return _segmentation_tasks(source, request_session_id, event_ids)
-    raise DatasetRegistryError("taskSource must be activeOverlay or taskSegments")
+        return _segmentation_tasks(source, request_session_id, event_ids), {}
+    if task_source == "runtimeTasks":
+        if kind != "runtimeTasks":
+            raise DatasetRegistryError("taskSource runtimeTasks must use source.kind runtimeTasks")
+        return _runtime_tasks(
+            source=source,
+            events=events,
+            session_metadata=session_metadata,
+            runtime_registry_root=runtime_registry_root,
+        )
+    raise DatasetRegistryError("taskSource must be activeOverlay, taskSegments, or runtimeTasks")
 
 
 def _raw_inclusion_requested(value: Any) -> bool:
@@ -211,6 +232,159 @@ def _segmentation_tasks(
     _require_provenance(source, payload, request_session_id)
     _validate_source_trace(source, payload, request_session_id, event_ids)
     return _segments_from_payload(payload, event_ids)
+
+
+def _runtime_tasks(
+    *,
+    source: dict[str, Any],
+    events: list[NormalizedEvent],
+    session_metadata: dict[str, Any],
+    runtime_registry_root: Path | None,
+) -> tuple[list[TaskSegment], dict[str, TaskDiffEvidence]]:
+    payload = source.get("payload") if isinstance(source.get("payload"), dict) else source
+    run_id = str(payload.get("runId") or payload.get("run_id") or "").strip()
+    if not RUNTIME_RUN_ID_RE.fullmatch(run_id):
+        raise DatasetRegistryError("runtime task source requires a valid runId")
+
+    registry = RunRegistry(runtime_registry_root)
+    try:
+        run = registry.load(run_id)
+    except (OSError, json.JSONDecodeError, TypeError) as exc:
+        raise DatasetRegistryError("runtime run was not found or is invalid", status=404) from exc
+
+    _validate_runtime_session(run.agent, run.workspace, session_metadata)
+    requested_ids = _runtime_task_ids(payload.get("taskIds") or payload.get("task_ids"))
+    task_root = registry.run_dir(run_id) / "tasks"
+    task_dirs = sorted(path for path in task_root.glob("task-*") if path.is_dir())
+    if requested_ids is not None:
+        available = {path.name: path for path in task_dirs}
+        missing = [task_id for task_id in requested_ids if task_id not in available]
+        if missing:
+            raise DatasetRegistryError(f"runtime task was not found: {missing[0]}", status=404)
+        task_dirs = [available[task_id] for task_id in requested_ids]
+
+    tasks: list[TaskSegment] = []
+    task_diffs: dict[str, TaskDiffEvidence] = {}
+    for index, task_dir in enumerate(task_dirs, 1):
+        task_path = task_dir / "task.json"
+        diff_path = task_dir / "task.diff"
+        try:
+            task_record = json.loads(task_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            if requested_ids is None:
+                continue
+            raise DatasetRegistryError(f"runtime task metadata is invalid: {task_dir.name}") from exc
+        if not isinstance(task_record, dict):
+            raise DatasetRegistryError(f"runtime task metadata is invalid: {task_dir.name}")
+
+        if not task_record.get("finished_at") or not diff_path.is_file():
+            if requested_ids is None:
+                continue
+            raise DatasetRegistryError(f"runtime task is not finalized: {task_dir.name}")
+        task_id = str(task_record.get("task_id") or task_dir.name)
+        if task_id != task_dir.name or not RUNTIME_TASK_ID_RE.fullmatch(task_id):
+            raise DatasetRegistryError(f"runtime task id is invalid: {task_dir.name}")
+        if str(task_record.get("run_id") or run_id) != run_id:
+            raise DatasetRegistryError(f"runtime task run_id does not match: {task_id}")
+
+        task_events = _events_in_runtime_window(
+            events,
+            started_at=task_record.get("started_at"),
+            finished_at=task_record.get("finished_at"),
+            task_id=task_id,
+        )
+        tasks.append(
+            TaskSegment(
+                task_id=task_id,
+                title=str(task_record.get("title") or f"任务 {index}"),
+                task_type="unknown",
+                status="unevaluated",
+                start_event_id=task_events[0].event_id,
+                end_event_id=task_events[-1].event_id,
+                boundary_reasons=["runtime /ccwhat:start and /ccwhat:finish"],
+                is_open=False,
+            )
+        )
+        try:
+            diff_content = diff_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise DatasetRegistryError(f"runtime task diff is invalid: {task_id}") from exc
+        task_diffs[task_id] = TaskDiffEvidence(content=diff_content)
+
+    if not tasks:
+        raise DatasetRegistryError("runtime run has no finalized tasks that align with this session")
+    return tasks, task_diffs
+
+
+def _runtime_task_ids(raw_task_ids: Any) -> list[str] | None:
+    if raw_task_ids is None:
+        return None
+    if not isinstance(raw_task_ids, list) or not raw_task_ids:
+        raise DatasetRegistryError("runtime taskIds must be a non-empty array")
+    task_ids = [str(task_id).strip() for task_id in raw_task_ids]
+    if any(not RUNTIME_TASK_ID_RE.fullmatch(task_id) for task_id in task_ids):
+        raise DatasetRegistryError("runtime taskIds contains an invalid task id")
+    return list(dict.fromkeys(task_ids))
+
+
+def _validate_runtime_session(
+    run_agent: str,
+    run_workspace: str,
+    session_metadata: dict[str, Any],
+) -> None:
+    session_agent = str(session_metadata.get("agent") or "").strip().lower()
+    if session_agent and session_agent != str(run_agent).strip().lower():
+        raise DatasetRegistryError("runtime run agent does not match the selected session")
+    session_workspace = session_metadata.get("project_dir")
+    if session_workspace:
+        selected = Path(str(session_workspace)).expanduser().resolve()
+        recorded = Path(run_workspace).expanduser().resolve()
+        if selected != recorded:
+            raise DatasetRegistryError("runtime run workspace does not match the selected session")
+
+
+def _events_in_runtime_window(
+    events: list[NormalizedEvent],
+    *,
+    started_at: Any,
+    finished_at: Any,
+    task_id: str,
+) -> list[NormalizedEvent]:
+    start = _parse_timestamp(started_at, f"runtime task {task_id} started_at")
+    finish = _parse_timestamp(finished_at, f"runtime task {task_id} finished_at")
+    if finish < start:
+        raise DatasetRegistryError(f"runtime task {task_id} has an invalid time window")
+
+    selected = []
+    for event in events:
+        if not event.timestamp:
+            continue
+        try:
+            event_time = _parse_timestamp(event.timestamp, "event timestamp")
+        except DatasetRegistryError:
+            continue
+        if start <= event_time <= finish:
+            selected.append(event)
+    if not selected:
+        raise DatasetRegistryError(
+            f"runtime task {task_id} cannot be aligned to normalized session events by timestamp"
+        )
+    return selected
+
+
+def _parse_timestamp(value: Any, field: str) -> datetime:
+    if not isinstance(value, str) or not value.strip():
+        raise DatasetRegistryError(f"{field} is required")
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = f"{normalized[:-1]}+00:00"
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise DatasetRegistryError(f"{field} is invalid") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _source_payload(source: dict[str, Any], preferred_key: str) -> dict[str, Any]:
@@ -355,7 +529,9 @@ def _resolve_dataset_dir(dataset_id: str, registry_root: Path) -> Path:
 def _allowed_dataset_member(rel_path: str) -> bool:
     if rel_path in {"manifest.json", "dataset.jsonl", "scores.jsonl"}:
         return True
-    return rel_path.startswith("traces/") and rel_path.endswith(".json")
+    if rel_path.startswith("traces/") and rel_path.endswith(".json"):
+        return True
+    return rel_path.startswith("diffs/") and rel_path.endswith(".diff")
 
 
 def _require_nonempty_string(payload: dict[str, Any], field: str) -> str:

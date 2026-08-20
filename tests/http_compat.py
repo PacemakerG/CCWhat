@@ -22,6 +22,7 @@ def make_handler(
     analyzer_timeout: float | None = None,
     adapter: AgentAdapter | None = None,
     dataset_registry_root: Path | None = None,
+    runtime_registry_root: Path | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     app = create_app(
         projects_dir,
@@ -32,6 +33,7 @@ def make_handler(
         analyzer_timeout=analyzer_timeout,
         adapter=adapter,
         dataset_registry_root=dataset_registry_root,
+        runtime_registry_root=runtime_registry_root,
     )
     client = TestClient(app)
 

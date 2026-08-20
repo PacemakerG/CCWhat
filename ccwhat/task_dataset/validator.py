@@ -12,6 +12,7 @@ from .models import (
     CHANGE_KINDS,
     DATASET_JSONL_PATH,
     DATASET_SCHEMA_VERSION,
+    DIFFS_DIR,
     MANIFEST_PATH,
     PATCH_CONFIDENCES,
     PATCH_FORMATS,
@@ -66,7 +67,7 @@ def validate_dataset(
     if isinstance(manifest, dict):
         _validate_manifest(manifest, counts, errors)
 
-    _validate_all_traces(traces, errors)
+    _validate_all_traces(traces, files, errors)
 
     for row in dataset_rows:
         _validate_dataset_row_trace(row, traces, errors)
@@ -304,11 +305,12 @@ def _validate_dataset_row_trace(
 
 def _validate_all_traces(
     traces: dict[str, Any],
+    files: dict[str, bytes],
     errors: list[ValidationIssue],
 ) -> None:
     for trace_path, trace in traces.items():
         if isinstance(trace, dict):
-            _validate_trace_schema(trace, trace_path, errors)
+            _validate_trace_schema(trace, trace_path, files, errors)
         elif trace is not None:
             errors.append(ValidationIssue(trace_path, "Trace JSON must be an object."))
 
@@ -345,6 +347,7 @@ def _validate_dataset_row_schema(
 def _validate_trace_schema(
     trace: dict[str, Any],
     trace_path: str,
+    dataset_files: dict[str, bytes],
     errors: list[ValidationIssue],
 ) -> None:
     for field in (
@@ -387,6 +390,79 @@ def _validate_trace_schema(
     patches = trace.get("patches") if isinstance(trace.get("patches"), list) else []
     _validate_patch_entries(patches, trace_path, errors)
     _validate_change_entries(changes, patches, trace_path, errors)
+    if "task_diff" in trace:
+        _validate_task_diff(trace, trace_path, dataset_files, errors)
+
+
+def _validate_task_diff(
+    trace: dict[str, Any],
+    trace_path: str,
+    dataset_files: dict[str, bytes],
+    errors: list[ValidationIssue],
+) -> None:
+    task_diff = _require_object(trace, trace_path, "task_diff", errors)
+    if task_diff is None:
+        return
+    for field in ("available", "source", "confidence", "path"):
+        _require_field(task_diff, trace_path, f"task_diff.{field}", errors, key=field)
+
+    available = task_diff.get("available")
+    if not isinstance(available, bool):
+        errors.append(
+            ValidationIssue(
+                trace_path,
+                "task_diff.available must be a boolean.",
+                field="task_diff.available",
+            )
+        )
+        return
+
+    source = task_diff.get("source")
+    confidence = task_diff.get("confidence")
+    diff_path = task_diff.get("path")
+    if not available:
+        if any(value is not None for value in (source, confidence, diff_path)):
+            errors.append(
+                ValidationIssue(
+                    trace_path,
+                    "Unavailable task_diff must use null source, confidence, and path.",
+                    field="task_diff",
+                )
+            )
+        return
+
+    if source != "isolated_git_index":
+        errors.append(
+            ValidationIssue(
+                trace_path,
+                "Available task_diff.source must be 'isolated_git_index'.",
+                field="task_diff.source",
+            )
+        )
+    if confidence != "high":
+        errors.append(
+            ValidationIssue(
+                trace_path,
+                "Available task_diff.confidence must be 'high'.",
+                field="task_diff.confidence",
+            )
+        )
+    if not isinstance(diff_path, str) or not diff_path.startswith(f"{DIFFS_DIR}/") or not diff_path.endswith(".diff"):
+        errors.append(
+            ValidationIssue(
+                trace_path,
+                "Available task_diff.path must reference diffs/*.diff.",
+                field="task_diff.path",
+            )
+        )
+    elif diff_path not in dataset_files:
+        errors.append(
+            ValidationIssue(
+                diff_path,
+                f"Trace references missing task diff path {diff_path!r}.",
+                field="task_diff.path",
+            )
+        )
 
 
 def _validate_change_entries(

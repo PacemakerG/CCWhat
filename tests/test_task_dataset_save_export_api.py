@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import http.client
+import io
 import json
 import tarfile
 import threading
@@ -11,7 +12,8 @@ from http.server import HTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from ccwhat.task_dataset import validate_dataset_path
+from ccwhat.task_dataset import build_dataset_tar_gz, validate_dataset_path
+from ccwhat.runtime.infra.registry import RunRegistry
 
 
 SESSION_ID = "aabb1122aabb1122aabb1122"
@@ -21,10 +23,16 @@ SESSION_FIXTURE = {
     "projectDir": "/tmp/ccwhat-test-project",
     "agent": "claude",
     "main": [
-        {"type": "user", "content": "Build Dataset save", "_fileLine": 1},
+        {
+            "type": "user",
+            "content": "Build Dataset save",
+            "timestamp": "2026-06-14T00:00:01Z",
+            "_fileLine": 1,
+        },
         {
             "type": "assistant",
             "message": {"content": [{"type": "text", "text": "Done"}]},
+            "timestamp": "2026-06-14T00:00:02Z",
             "_fileLine": 2,
         },
     ],
@@ -32,7 +40,11 @@ SESSION_FIXTURE = {
 }
 
 
-def _make_test_server(registry_root: Path, session_data: dict | None = SESSION_FIXTURE):
+def _make_test_server(
+    registry_root: Path,
+    session_data: dict | None = SESSION_FIXTURE,
+    runtime_registry_root: Path | None = None,
+):
     from ccwhat.adapters.base import AgentAdapter
     from tests.http_compat import make_handler as _make_handler
 
@@ -63,6 +75,7 @@ def _make_test_server(registry_root: Path, session_data: dict | None = SESSION_F
         Path("."),
         adapter=_MockAdapter(),
         dataset_registry_root=registry_root,
+        runtime_registry_root=runtime_registry_root,
     )
     server = HTTPServer(("127.0.0.1", 0), handler)
     return server, server.server_address[1]
@@ -178,11 +191,32 @@ def _overlay_payload() -> dict:
     }
 
 
+def _runtime_payload(run_id: str) -> dict:
+    return {
+        "sessionId": SESSION_ID,
+        "taskSource": "runtimeTasks",
+        "source": {
+            "kind": "runtimeTasks",
+            "payload": {
+                "runId": run_id,
+                "taskIds": ["task-001"],
+            },
+        },
+        "download": False,
+        "includeRawSession": False,
+        "includeReqResp": False,
+    }
+
+
 class TestTaskDatasetSaveApi(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.registry_root = Path(self.tmp.name) / "datasets"
-        self.server, self.port = _make_test_server(self.registry_root)
+        self.runtime_registry_root = Path(self.tmp.name) / "runtime"
+        self.server, self.port = _make_test_server(
+            self.registry_root,
+            runtime_registry_root=self.runtime_registry_root,
+        )
 
     def tearDown(self) -> None:
         self.server.server_close()
@@ -203,6 +237,65 @@ class TestTaskDatasetSaveApi(unittest.TestCase):
         self.assertTrue((dataset_dir / "traces" / "trace-task-001.json").is_file())
         result = validate_dataset_path(dataset_dir)
         self.assertTrue(result.ok, result.errors)
+        trace = json.loads(
+            (dataset_dir / "traces" / "trace-task-001.json").read_text(encoding="utf-8")
+        )
+        self.assertFalse(trace["task_diff"]["available"])
+
+    def test_save_runtime_tasks_uses_common_dataset_with_git_diff(self) -> None:
+        runtime_registry = RunRegistry(self.runtime_registry_root)
+        run = runtime_registry.create_run(
+            agent="claude",
+            workspace=Path(SESSION_FIXTURE["projectDir"]),
+            target_args=("claude",),
+            proxy_port=11001,
+            viewer_port=11002,
+            control_port=11003,
+        )
+        task_dir = runtime_registry.run_dir(run.run_id) / "tasks" / "task-001"
+        task_dir.mkdir(parents=True)
+        (task_dir / "task.json").write_text(json.dumps({
+            "schema": "ccwhat-runtime-task-v1",
+            "task_id": "task-001",
+            "run_id": run.run_id,
+            "agent": "claude",
+            "workspace": SESSION_FIXTURE["projectDir"],
+            "title": "Build Dataset save",
+            "status": "finalized",
+            "started_at": "2026-06-14T00:00:00Z",
+            "finished_at": "2026-06-14T00:00:03Z",
+            "start_tree": "before",
+            "end_tree": "after",
+            "paths": {"task_diff": "task.diff"},
+        }), encoding="utf-8")
+        diff = "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n"
+        (task_dir / "task.diff").write_text(diff, encoding="utf-8")
+
+        _start(self.server)
+        status, data = _post(self.port, "/api/save-task-dataset", _runtime_payload(run.run_id))
+
+        self.assertEqual(status, 200, data)
+        dataset_dir = Path(data["datasetPath"])
+        row = json.loads((dataset_dir / "dataset.jsonl").read_text(encoding="utf-8"))
+        trace = json.loads(
+            (dataset_dir / "traces" / "trace-task-001.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(row["metadata"]["task_source"], "runtimeTasks")
+        self.assertEqual(trace["task_diff"]["source"], "isolated_git_index")
+        self.assertEqual(
+            (dataset_dir / "diffs" / "trace-task-001.diff").read_text(encoding="utf-8"),
+            diff,
+        )
+        self.assertTrue(validate_dataset_path(dataset_dir).ok)
+        tar_bytes, _ = build_dataset_tar_gz(
+            dataset_id=data["datasetId"],
+            registry_root=self.registry_root,
+        )
+        with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as archive:
+            self.assertIn(
+                "ccwhat-dataset/diffs/trace-task-001.diff",
+                archive.getnames(),
+            )
 
     def test_save_overlay_success_uses_full_saved_overlay_payload(self) -> None:
         _start(self.server)
