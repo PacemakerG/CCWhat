@@ -4,7 +4,8 @@
 
 ## Unreleased
 
-- 回放统一重新序列化请求体；认证 Header 完全从当前目标网关的环境配置生成，移除未脱敏旧凭据和 Cookie，不再要求复用旧 CLI 的认证字段。显式网关 Header 集合优先，Viewer 使用配置中的敏感头识别规则。
+- 回放支持从本机 `~/.claude/settings.json` 的 `env` 读取 API Key、认证令牌和自定义 Header，并按配置的网关 origin 使用；支持 `CLAUDE_CONFIG_DIR`，显式 Header 和进程环境变量优先，避免跨来源混用地址与凭据。
+- 回放统一重新序列化请求体；认证 Header 从本机配置或环境变量生成，移除未脱敏旧凭据和 Cookie，不再要求复用旧 CLI 的认证字段。显式网关 Header 集合优先，Viewer 使用配置中的敏感头识别规则。
 - 请求回放改为使用记录中的地址、查询参数和 stream 设置，移除旧内部 CLI 凭据读取；按目标 origin 补充认证 Header。
 - 支持 Anthropic Messages、Chat Completions、Responses 的响应解析和精确文本编辑，修复整理日志丢失 content、工具调用丢失和跨会话回放缓存冲突。
 - 录制支持增量 UTF-8 解码及不同 SSE 换行格式；自动模式不再强加服务商路径假设，并补齐 Codex ChatGPT 登录的 HTTP 录制目标。

@@ -12,7 +12,8 @@ from viewer.server import ViewerBackend, get_req_resp_records
 
 
 @pytest.fixture(autouse=True)
-def clean_replay_environment(monkeypatch):
+def clean_replay_environment(monkeypatch, tmp_path):
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
     for key in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_CUSTOM_HEADERS",
                 "OPENAI_BASE_URL", "OPENAI_API_KEY", "CCWHAT_REPLAY_HEADERS", "HTTP_PROXY", "HTTPS_PROXY",
                 "http_proxy", "https_proxy"):

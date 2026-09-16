@@ -14,6 +14,27 @@ from ccwhat.parsers.sse_parser import parse_response, parse_sse_events
 from ccwhat.config import DEFAULT_REDACT_HEADERS, DEFAULT_REDACT_PATTERNS, load_config
 
 
+_ANTHROPIC_REPLAY_ENV = (
+    "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_CUSTOM_HEADERS",
+)
+
+
+def _claude_settings_env() -> dict[str, str]:
+    config_dir = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude").expanduser()
+    try:
+        settings = json.loads((config_dir / "settings.json").read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError):
+        raise ValueError("Cannot read Claude settings.json for replay credentials") from None
+    env = settings.get("env", {}) if isinstance(settings, dict) else None
+    if not isinstance(env, dict) or any(
+        key in env and not isinstance(env[key], str) for key in _ANTHROPIC_REPLAY_ENV
+    ):
+        raise ValueError("Claude settings.json must contain an env object with string replay settings")
+    return {key: env[key] for key in _ANTHROPIC_REPLAY_ENV if key in env}
+
+
 def _origin(url: str) -> str:
     parts = urlsplit(url)
     if parts.scheme not in {"http", "https"} or not parts.hostname or parts.username or parts.password:
@@ -27,7 +48,7 @@ def _origin(url: str) -> str:
 
 
 def _current_headers(origin: str) -> dict[str, str]:
-    """An explicit per-origin header set takes precedence over provider defaults."""
+    """Use explicit headers, then process credentials, then local Claude settings."""
     try:
         overrides = json.loads(os.environ.get("CCWHAT_REPLAY_HEADERS", "{}"))
         if not isinstance(overrides, dict):
@@ -44,19 +65,26 @@ def _current_headers(origin: str) -> dict[str, str]:
     except (ValueError, TypeError):
         raise ValueError("CCWHAT_REPLAY_HEADERS must map HTTP(S) origins to current header objects") from None
 
+    anthropic_env = {key: os.environ[key] for key in _ANTHROPIC_REPLAY_ENV if key in os.environ}
+    openai_key = None
+    if origin == _origin(os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com"):
+        openai_key = os.environ.get("OPENAI_API_KEY")
+    if not anthropic_env and not openai_key:
+        # Keep the endpoint and credentials together; never merge different sources.
+        anthropic_env = _claude_settings_env()
+
     fresh: dict[str, str] = {}
-    if origin == _origin(os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"):
-        if os.environ.get("ANTHROPIC_AUTH_TOKEN"):
-            fresh["authorization"] = "Bearer " + os.environ["ANTHROPIC_AUTH_TOKEN"]
-        elif os.environ.get("ANTHROPIC_API_KEY"):
-            fresh["x-api-key"] = os.environ["ANTHROPIC_API_KEY"]
-        for line in os.environ.get("ANTHROPIC_CUSTOM_HEADERS", "").splitlines():
+    if origin == _origin(anthropic_env.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"):
+        if anthropic_env.get("ANTHROPIC_AUTH_TOKEN"):
+            fresh["authorization"] = "Bearer " + anthropic_env["ANTHROPIC_AUTH_TOKEN"]
+        elif anthropic_env.get("ANTHROPIC_API_KEY"):
+            fresh["x-api-key"] = anthropic_env["ANTHROPIC_API_KEY"]
+        for line in anthropic_env.get("ANTHROPIC_CUSTOM_HEADERS", "").splitlines():
             if ":" in line:
                 key, value = line.split(":", 1)
                 fresh[key.strip().lower()] = value.strip()
-    if origin == _origin(os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com"):
-        if os.environ.get("OPENAI_API_KEY") and not fresh:
-            fresh["authorization"] = "Bearer " + os.environ["OPENAI_API_KEY"]
+    if openai_key and not fresh:
+        fresh["authorization"] = "Bearer " + openai_key
     return fresh
 
 

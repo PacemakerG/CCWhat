@@ -33,17 +33,32 @@
 
 ## 凭据配置
 
-回放先移除历史认证信息，包括未脱敏的旧凭据、Cookie 及已脱敏值，再从当前环境重新构造认证 Header。请在启动 Viewer 的同一终端配置环境变量，然后启动 `ccwhat web --agent <agent>`。
+回放先移除历史认证信息，包括未脱敏的旧凭据、Cookie 及已脱敏值，再从本机配置或当前环境重新构造认证 Header。支持直接读取用户目录下 `~/.claude/settings.json` 的 `env`；设置了 `CLAUDE_CONFIG_DIR` 时，读取该目录中的 `settings.json`。也可以在启动 Viewer 的同一终端配置环境变量，然后启动 `ccwhat web --agent <agent>`。
 
 敏感头按通用名称/模式及当前 `config.toml` 的 `recording.redact_headers`、`recording.redact_header_patterns` 识别；没有明显认证特征的私有 Header 名称应加入该配置。Viewer 的 `--config` 同时指定这组规则。
 
 标准服务：
 
+- 本机 Claude 配置读取 `env` 中的 `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_API_KEY` 和 `ANTHROPIC_CUSTOM_HEADERS`。认证令牌生成 `Authorization: Bearer ...`，API Key 通过 `x-api-key` 请求头传递；两者同时存在时优先使用认证令牌。自定义 Header 使用每行 `名称: 值` 的格式。
 - `ANTHROPIC_API_KEY` 或 `ANTHROPIC_AUTH_TOKEN` 仅用于 `ANTHROPIC_BASE_URL` 对应的 origin；未设置 base URL 时为 `https://api.anthropic.com`。`ANTHROPIC_CUSTOM_HEADERS` 也仅用于该 origin。
 - `OPENAI_API_KEY` 仅用于 `OPENAI_BASE_URL` 对应的 origin；未设置 base URL 时为 `https://api.openai.com`。
-- 不自动读取其他 CLI 的登录文件，也不会把 OpenAI API key 当成 ChatGPT 登录凭据。
+- 进程环境变量中只要设置了上述任一 `ANTHROPIC_*` 字段，就整组使用进程配置，不从文件补齐其他字段；仅设置 base URL 也不会把文件中的凭据转发到新地址。匹配目标的 OpenAI 环境凭据同样优先于 Claude 文件配置。未设置这些进程配置时，回退到本机 Claude 配置。
+- 只读取本机用户配置，不读取导入记录关联的项目配置，不执行 `apiKeyHelper`，也不读取 CLI 的 OAuth 登录文件或系统钥匙串。文件不存在或 `env` 为空时没有可补充的文件凭据；文件无法读取或格式错误时明确报错。
 
-自定义网关、ChatGPT 登录或其他 Header 认证，使用 `CCWHAT_REPLAY_HEADERS`。它是 **origin → Header 对象** 的 JSON 映射；origin 包含协议、主机及非默认端口。它不改变请求目标。
+本机 `~/.claude/settings.json` 示例（合并到已有 `env`，替换示例地址与凭据）：
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://gateway.example.com",
+    "ANTHROPIC_AUTH_TOKEN": "YOUR_TOKEN"
+  }
+}
+```
+
+这里的凭据只用于相同 origin 的历史请求，不会自动把历史请求地址改成本机网关地址。
+
+需要为不同网关逐个指定认证 Header 时，使用 `CCWHAT_REPLAY_HEADERS`。它是 **origin → Header 对象** 的 JSON 映射；origin 包含协议、主机及非默认端口。它不改变请求目标。
 
 PowerShell 示例（将示例值替换为对应服务的有效凭据）：
 
@@ -59,7 +74,7 @@ export CCWHAT_REPLAY_HEADERS='{"https://gateway.example.com":{"Authorization":"B
 ccwhat web --agent codex
 ```
 
-匹配 origin 的显式 Header 映射完整替代标准环境变量推导出的 Header 集合，避免同时混入多套认证；Header 名称不区分大小写。显式设置为空对象可用于不需要认证的目标。历史记录中的认证字段不代表当前网关的必填字段，不再要求逐项补回旧 `X-Client-Token` 或 Cookie。未配置有效凭据且目标需要认证时，由目标服务返回认证错误，不会回退到历史凭据。重定向不会被自动跟随。
+匹配 origin 的显式 Header 映射完整替代环境变量和本机 Claude 配置推导出的 Header 集合，避免同时混入多套认证；Header 名称不区分大小写。显式设置为空对象可用于不需要认证的目标。历史记录中的认证字段不代表当前网关的必填字段，不再要求逐项补回旧 `X-Client-Token` 或 Cookie。未配置有效凭据且目标需要认证时，由目标服务返回认证错误，不会回退到历史凭据。重定向不会被自动跟随。
 
 ## 支持边界
 
@@ -69,4 +84,4 @@ ccwhat web --agent codex
 - 使用 preset 或显式 paths 时仍保留用户的过滤选择；自定义网关若采用不同路径，应调整该配置。
 - OpenSpec Marker 诊断仍是明确面向 Claude Code 的 Workflow Adapter；它没有被宣称为任意 CLI 的通用归因器。
 
-参考：[OpenAI 对 Codex 两种登录 endpoint 的说明](https://openai.com/index/unrolling-the-codex-agent-loop/)、[Anthropic SSE 协议](https://platform.claude.com/docs/en/build-with-claude/streaming)、[Python Windows 信号零问题](https://bugs.python.org/issue14480)。
+参考：[Claude 本机配置文件](https://code.claude.com/docs/en/settings)、[Claude 认证环境变量](https://code.claude.com/docs/en/env-vars)、[OpenAI 对 Codex 两种登录 endpoint 的说明](https://openai.com/index/unrolling-the-codex-agent-loop/)、[Anthropic SSE 协议](https://platform.claude.com/docs/en/build-with-claude/streaming)、[Python Windows 信号零问题](https://bugs.python.org/issue14480)。
