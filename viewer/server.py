@@ -21,6 +21,7 @@ from starlette.concurrency import run_in_threadpool
 
 from ccwhat.adapters.base import AdapterNotImplementedError, AgentAdapter, SessionRenameError
 from ccwhat.adapters.claude import ClaudeAdapter
+from ccwhat.config import DEFAULT_CONFIG_PATH
 from ccwhat.session_report import normalize_session_for_report
 from ccwhat.parsers.sse_parser import parse_response, parse_sse_events
 from ccwhat.replay import edit_targets, recorded_body, send_replay
@@ -1069,7 +1070,9 @@ class ViewerBackend:
         session = self.replay_store[session_id]
         session.update(isLoading=True, error=None, result=None, appliedEdits=[])
         try:
-            result, applied_edits = send_replay(session["record"], payload.get("edits", []))
+            result, applied_edits = send_replay(
+                session["record"], payload.get("edits", []), config_path=self.config_path,
+            )
             session.update(result=result, appliedEdits=applied_edits)
             return 200, {"ok": True, "result": result, "appliedEdits": applied_edits}
         except ValueError as exc:
@@ -1316,7 +1319,7 @@ def create_app(
     dataset_registry_root: Path | None = None,
     runtime_registry_root: Path | None = None,
 ) -> FastAPI:
-    config_path = config_path or (Path.home() / ".ccwhat" / "config.json")
+    config_path = config_path or DEFAULT_CONFIG_PATH
     backend = ViewerBackend(
         Path(__file__).parent,
         projects_dir,
@@ -1652,7 +1655,7 @@ def create_server(
     dataset_registry_root: Path | None = None,
     runtime_registry_root: Path | None = None,
 ) -> ViewerServer:
-    config_path = config_path or (Path.home() / ".ccwhat" / "config.json")
+    config_path = config_path or DEFAULT_CONFIG_PATH
     app = create_app(
         projects_dir,
         logs_dir,

@@ -6,10 +6,12 @@ import copy
 import json
 import os
 import urllib.request
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 from ccwhat.parsers.sse_parser import parse_response, parse_sse_events
+from ccwhat.config import DEFAULT_REDACT_HEADERS, DEFAULT_REDACT_PATTERNS, load_config
 
 
 def _origin(url: str) -> str:
@@ -24,15 +26,24 @@ def _origin(url: str) -> str:
     return f"{parts.scheme}://{host}{suffix}"
 
 
-def replay_headers(url: str, recorded: dict[str, str]) -> dict[str, str]:
-    """Restore credentials only for their configured origin; never read CLI stores."""
-    origin = _origin(url)
-    recorded = {k.lower(): v for k, v in recorded.items()}
-    transport = {"host", "content-length", "accept-encoding", "content-encoding", "connection",
-                 "transfer-encoding", "keep-alive", "te", "trailer", "upgrade", "proxy-authorization"}
-    transport.update(x.strip().lower() for x in recorded.get("connection", "").split(","))
-    redacted = {k for k, v in recorded.items() if "[REDACTED]" in v and k not in transport}
-    headers = {k: v for k, v in recorded.items() if k not in transport and k not in redacted}
+def _current_headers(origin: str) -> dict[str, str]:
+    """An explicit per-origin header set takes precedence over provider defaults."""
+    try:
+        overrides = json.loads(os.environ.get("CCWHAT_REPLAY_HEADERS", "{}"))
+        if not isinstance(overrides, dict):
+            raise ValueError
+        for target, values in overrides.items():
+            if _origin(target) != origin:
+                continue
+            if not isinstance(values, dict) or not all(
+                isinstance(k, str) and isinstance(v, str) and "[REDACTED]" not in v
+                for k, v in values.items()
+            ):
+                raise ValueError
+            return {k.lower(): v for k, v in values.items()}
+    except (ValueError, TypeError):
+        raise ValueError("CCWHAT_REPLAY_HEADERS must map HTTP(S) origins to current header objects") from None
+
     fresh: dict[str, str] = {}
     if origin == _origin(os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"):
         if os.environ.get("ANTHROPIC_AUTH_TOKEN"):
@@ -44,28 +55,37 @@ def replay_headers(url: str, recorded: dict[str, str]) -> dict[str, str]:
                 key, value = line.split(":", 1)
                 fresh[key.strip().lower()] = value.strip()
     if origin == _origin(os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com"):
-        if os.environ.get("OPENAI_API_KEY"):
+        if os.environ.get("OPENAI_API_KEY") and not fresh:
             fresh["authorization"] = "Bearer " + os.environ["OPENAI_API_KEY"]
-    try:
-        overrides = json.loads(os.environ.get("CCWHAT_REPLAY_HEADERS", "{}"))
-        if not isinstance(overrides, dict):
-            raise ValueError
-        for target, values in overrides.items():
-            if _origin(target) != origin:
-                continue
-            if not isinstance(values, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in values.items()):
-                raise ValueError
-            fresh.update({k.lower(): v for k, v in values.items()})
-    except (ValueError, TypeError):
-        raise ValueError("CCWHAT_REPLAY_HEADERS must map HTTP(S) origins to header objects") from None
+    return fresh
+
+
+def replay_headers(
+    url: str, recorded: dict[str, str], *, config_path: Path | None = None,
+) -> dict[str, str]:
+    """Keep ordinary metadata, discard historical credentials, and load current ones."""
+    origin = _origin(url)
+    recorded = {k.lower(): v for k, v in recorded.items()}
+    transport = {"host", "content-length", "accept-encoding", "content-encoding", "connection",
+                 "transfer-encoding", "keep-alive", "te", "trailer", "upgrade", "proxy-authorization"}
+    transport.update(x.strip().lower() for x in recorded.get("connection", "").split(","))
+    cfg = load_config(config_path)
+    sensitive = set(DEFAULT_REDACT_HEADERS)
+    patterns = set(DEFAULT_REDACT_PATTERNS) | {"auth", "credential", "signature"}
+    if cfg is not None:
+        sensitive.update(name.lower() for name in cfg.redact_headers)
+        patterns.update(pattern.lower() for pattern in cfg.redact_header_patterns)
+
+    headers = {
+        k: v for k, v in recorded.items()
+        if k not in transport and k not in sensitive
+        and not any(pattern in k for pattern in patterns)
+        and "[REDACTED]" not in v
+    }
+    fresh = _current_headers(origin)
     headers.update({k: v for k, v in fresh.items() if k not in transport and "[REDACTED]" not in v})
-    # Either standard auth mechanism can replace a redacted standard credential.
-    missing = redacted - headers.keys()
-    if headers.get("authorization") or headers.get("x-api-key"):
-        missing -= {"authorization", "x-api-key"}
-    if missing:
-        raise ValueError("Replay needs fresh headers for " + origin + ": " + ", ".join(sorted(missing))
-                         + ". Set CCWHAT_REPLAY_HEADERS for this origin before starting the Viewer.")
+    # Historical header names do not define the current gateway's auth contract.
+    # It may now use another auth method or require no authentication at all.
     headers.setdefault("content-type", "application/json")
     return headers
 
@@ -163,11 +183,11 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def send_replay(record: dict, edits: list) -> tuple[dict, list]:
+def send_replay(record: dict, edits: list, *, config_path: Path | None = None) -> tuple[dict, list]:
     body, applied = apply_edits(recorded_body(record), edits)
-    headers = replay_headers(record["url"], record["request"].get("headers", {}))
-    data = json.dumps(body, ensure_ascii=False).encode("utf-8") if applied else record["request"]["body"].encode("utf-8")
-    request = urllib.request.Request(record["url"], data=data, headers=headers, method=record["method"])
+    headers = replay_headers(record["url"], record["request"].get("headers", {}), config_path=config_path)
+    data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(record["url"], data=data, headers=headers, method="POST")
     with urllib.request.build_opener(_NoRedirect()).open(request, timeout=600) as response:
         raw = response.read().decode("utf-8")
         if "text/event-stream" in response.headers.get("Content-Type", "").lower():

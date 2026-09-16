@@ -53,7 +53,7 @@ def _port_in_use(port: int) -> bool:
     default=str(DEFAULT_CONFIG_PATH),
     show_default=True,
     type=click.Path(dir_okay=False, path_type=Path),
-    help="Path to config.toml used for recording status display.",
+    help="Path to config.toml used for recording status and replay header redaction rules.",
 )
 def web_server(
     port: int,

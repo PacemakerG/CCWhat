@@ -60,7 +60,7 @@ def record(url, body, headers=None):
     {"model": "any", "input": [{"role": "user", "content": [{"type": "input_text", "text": "你好"}]}],
      "stream": True, "store": False, "previous_response_id": "resp_original"},
 ])
-def test_replay_uses_original_endpoint_and_exact_unedited_body(upstream, monkeypatch, body):
+def test_replay_uses_original_endpoint_and_reserializes_body(upstream, monkeypatch, body):
     origin, captured, replies = upstream
     monkeypatch.setenv("CLAUDE_API_URL", "https://wrong.example/messages")
     monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "wrong-provider-token")
@@ -74,7 +74,8 @@ def test_replay_uses_original_endpoint_and_exact_unedited_body(upstream, monkeyp
     assert applied == []
     sent = captured[0]
     assert sent["path"] == "/gateway/custom/infer?version=7"
-    assert sent["body"] == rec["request"]["body"].encode("utf-8")
+    assert json.loads(sent["body"]) == body
+    assert sent["body"] == json.dumps(body, ensure_ascii=False).encode("utf-8")
     assert sent["headers"]["Authorization"] == "Bearer fresh"
     assert "Content-Encoding" not in sent["headers"]
     assert sent["headers"]["Host"] != "old.example"
@@ -97,8 +98,8 @@ def test_credentials_are_scoped_and_redacted_values_are_never_sent(monkeypatch):
     assert replay_headers("https://api.anthropic.com/v1/messages", {})["x-api-key"] == "anthropic-secret"
     assert replay_headers("https://api.openai.com/v1/responses", {})["authorization"] == "Bearer openai-secret"
     assert "authorization" not in replay_headers("https://other.example/v1/responses", {})
-    with pytest.raises(ValueError, match="fresh headers"):
-        replay_headers("https://other.example/v1/responses", {"Authorization": "[REDACTED]"})
+    assert "authorization" not in replay_headers(
+        "https://other.example/v1/responses", {"Authorization": "[REDACTED]"})
     monkeypatch.setenv("OPENAI_BASE_URL", "https://gateway.example/prefix/v1")
     assert replay_headers("https://gateway.example/prefix/v1/responses", {})["authorization"] == "Bearer openai-secret"
     assert "authorization" not in replay_headers("https://api.openai.com/v1/responses", {})
