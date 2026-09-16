@@ -8,7 +8,7 @@ import os
 import urllib.request
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from ccwhat.parsers.sse_parser import parse_response, parse_sse_events
 from ccwhat.config import DEFAULT_REDACT_HEADERS, DEFAULT_REDACT_PATTERNS, load_config
@@ -47,8 +47,7 @@ def _origin(url: str) -> str:
     return f"{parts.scheme}://{host}{suffix}"
 
 
-def _current_headers(origin: str) -> dict[str, str]:
-    """Use explicit headers, then process credentials, then local Claude settings."""
+def _explicit_headers(origin: str) -> dict[str, str] | None:
     try:
         overrides = json.loads(os.environ.get("CCWHAT_REPLAY_HEADERS", "{}"))
         if not isinstance(overrides, dict):
@@ -64,18 +63,26 @@ def _current_headers(origin: str) -> dict[str, str]:
             return {k.lower(): v for k, v in values.items()}
     except (ValueError, TypeError):
         raise ValueError("CCWHAT_REPLAY_HEADERS must map HTTP(S) origins to current header objects") from None
+    return None
 
-    anthropic_env = {key: os.environ[key] for key in _ANTHROPIC_REPLAY_ENV if key in os.environ}
+
+def _current_headers(origin: str, anthropic_env: dict[str, str] | None = None) -> dict[str, str]:
+    """Use explicit headers, then process credentials, then local Claude settings."""
+    explicit = _explicit_headers(origin)
+    if explicit is not None:
+        return explicit
     openai_key = None
     if origin == _origin(os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com"):
         openai_key = os.environ.get("OPENAI_API_KEY")
-    if not anthropic_env and not openai_key:
-        # Keep the endpoint and credentials together; never merge different sources.
-        anthropic_env = _claude_settings_env()
+    if anthropic_env is None:
+        anthropic_env = {key: os.environ[key] for key in _ANTHROPIC_REPLAY_ENV if key in os.environ}
+        if not anthropic_env and not openai_key:
+            anthropic_env = _claude_settings_env()
 
     fresh: dict[str, str] = {}
     if origin == _origin(anthropic_env.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"):
         if anthropic_env.get("ANTHROPIC_AUTH_TOKEN"):
+            # This is a Bearer header value, which can itself be a provider API key.
             fresh["authorization"] = "Bearer " + anthropic_env["ANTHROPIC_AUTH_TOKEN"]
         elif anthropic_env.get("ANTHROPIC_API_KEY"):
             fresh["x-api-key"] = anthropic_env["ANTHROPIC_API_KEY"]
@@ -88,13 +95,40 @@ def _current_headers(origin: str) -> dict[str, str]:
     return fresh
 
 
+def _replay_endpoint(url: str) -> tuple[str, dict[str, str] | None]:
+    """Rebuild CC Messages URLs using the same local settings as authentication."""
+    original = urlsplit(url)
+    endpoint = next((path for path in ("/v1/messages", "/v1/messages/count_tokens")
+                     if original.path.rstrip("/").endswith(path)), None)
+    if endpoint is None or _explicit_headers(_origin(url)) is not None:
+        return url, None
+    anthropic_env = {key: os.environ[key] for key in _ANTHROPIC_REPLAY_ENV if key in os.environ}
+    if not anthropic_env and os.environ.get("OPENAI_API_KEY") and _origin(url) == _origin(
+        os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com"
+    ):
+        return url, None
+    if not anthropic_env:
+        anthropic_env = _claude_settings_env()
+    if not anthropic_env:
+        return url, anthropic_env
+    base_url = anthropic_env.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
+    _origin(base_url)
+    base = urlsplit(base_url)
+    if base.query or base.fragment:
+        raise ValueError("Replay ANTHROPIC_BASE_URL must not contain a query or fragment")
+    target = urlunsplit((base.scheme, base.netloc, base.path.rstrip("/") + endpoint,
+                        original.query, ""))
+    return target, anthropic_env
+
+
 def replay_headers(
     url: str, recorded: dict[str, str], *, config_path: Path | None = None,
+    anthropic_env: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Keep ordinary metadata, discard historical credentials, and load current ones."""
     origin = _origin(url)
     recorded = {k.lower(): v for k, v in recorded.items()}
-    transport = {"host", "content-length", "accept-encoding", "content-encoding", "connection",
+    transport = {"host", "content-length", "accept-encoding", "content-encoding", "connection", "proxy-connection",
                  "transfer-encoding", "keep-alive", "te", "trailer", "upgrade", "proxy-authorization"}
     transport.update(x.strip().lower() for x in recorded.get("connection", "").split(","))
     cfg = load_config(config_path)
@@ -110,7 +144,7 @@ def replay_headers(
         and not any(pattern in k for pattern in patterns)
         and "[REDACTED]" not in v
     }
-    fresh = _current_headers(origin)
+    fresh = _current_headers(origin, anthropic_env)
     headers.update({k: v for k, v in fresh.items() if k not in transport and "[REDACTED]" not in v})
     # Historical header names do not define the current gateway's auth contract.
     # It may now use another auth method or require no authentication at all.
@@ -207,15 +241,17 @@ def recorded_body(record: dict) -> dict:
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        # Recorded credentials belong to the original endpoint only.
+        # Current credentials belong only to the selected endpoint.
         return None
 
 
 def send_replay(record: dict, edits: list, *, config_path: Path | None = None) -> tuple[dict, list]:
     body, applied = apply_edits(recorded_body(record), edits)
-    headers = replay_headers(record["url"], record["request"].get("headers", {}), config_path=config_path)
+    url, anthropic_env = _replay_endpoint(record["url"])
+    headers = replay_headers(url, record["request"].get("headers", {}), config_path=config_path,
+                             anthropic_env=anthropic_env)
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")
-    request = urllib.request.Request(record["url"], data=data, headers=headers, method="POST")
+    request = urllib.request.Request(url, data=data, headers=headers, method="POST")
     with urllib.request.build_opener(_NoRedirect()).open(request, timeout=600) as response:
         raw = response.read().decode("utf-8")
         if "text/event-stream" in response.headers.get("Content-Type", "").lower():

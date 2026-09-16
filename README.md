@@ -66,7 +66,7 @@ AgentLens 只做一件事：
 
 ### 对比与回放
 
-比较相邻 Turn 的结构变化，定位新增、删除和修改的上下文字段。完整的 JSON POST 请求可以按原始地址回放，也可以精确修改消息中的文本字段后重新发送；支持 Anthropic Messages、OpenAI Chat Completions 和 Responses。凭据配置、项目现状与支持边界见[请求回放说明](./docs/REPLAY.md)。
+比较相邻 Turn 的结构变化，定位新增、删除和修改的上下文字段。完整的 JSON POST 请求可以精确修改消息中的文本字段后重新发送；CC Messages 回放使用本机配置的 Base URL 和密钥，无对应配置及其他协议保留原地址。支持 Anthropic Messages、OpenAI Chat Completions 和 Responses。配置方式、项目现状与支持边界见[请求回放说明](./docs/REPLAY.md)。
 
 ### 拆分和校正任务
 

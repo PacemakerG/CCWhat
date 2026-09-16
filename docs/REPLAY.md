@@ -17,7 +17,7 @@
 
 | 原问题 | 当前行为 |
 | --- | --- |
-| 回放固定使用 Anthropic URL，并追加 beta 查询参数 | 使用记录中的完整 URL 和查询参数 |
+| 回放固定使用 Anthropic URL，并追加 beta 查询参数 | CC Messages 使用本机配置的 Base URL 和原查询参数；无对应配置及其他协议保留记录地址 |
 | 自动读取旧内部 CLI 的凭据，注入专用 Header | 移除历史认证信息，按当前目标 origin 重新构造认证 Header；自定义网关自行指定 Header 名称 |
 | 强制将 stream 改为 false | 保留原始 stream 设置，支持 JSON 和 SSE 响应 |
 | 编辑只识别 messages，且可能覆盖工具结果、错误的文本块 | 同时支持 messages、Responses input 字符串/数组；精确编辑文本字段，保留图片、工具 ID 和其他字段 |
@@ -39,7 +39,7 @@
 
 标准服务：
 
-- 本机 Claude 配置读取 `env` 中的 `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_API_KEY` 和 `ANTHROPIC_CUSTOM_HEADERS`。认证令牌生成 `Authorization: Bearer ...`，API Key 通过 `x-api-key` 请求头传递；两者同时存在时优先使用认证令牌。自定义 Header 使用每行 `名称: 值` 的格式。
+- 本机 Claude 配置读取 `env` 中的 `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_API_KEY` 和 `ANTHROPIC_CUSTOM_HEADERS`。`ANTHROPIC_API_KEY` 通过 `x-api-key` 请求头传递；`ANTHROPIC_AUTH_TOKEN` 作为 `Authorization: Bearer ...` 的值，也可以填写服务商提供的 API Key。字段名中的 TOKEN 不代表必须另外申请登录令牌，回放也不会申请或刷新令牌。两项同时存在时沿用现有的 Bearer 配置优先级。自定义 Header 使用每行 `名称: 值` 的格式。
 - `ANTHROPIC_API_KEY` 或 `ANTHROPIC_AUTH_TOKEN` 仅用于 `ANTHROPIC_BASE_URL` 对应的 origin；未设置 base URL 时为 `https://api.anthropic.com`。`ANTHROPIC_CUSTOM_HEADERS` 也仅用于该 origin。
 - `OPENAI_API_KEY` 仅用于 `OPENAI_BASE_URL` 对应的 origin；未设置 base URL 时为 `https://api.openai.com`。
 - 进程环境变量中只要设置了上述任一 `ANTHROPIC_*` 字段，就整组使用进程配置，不从文件补齐其他字段；仅设置 base URL 也不会把文件中的凭据转发到新地址。匹配目标的 OpenAI 环境凭据同样优先于 Claude 文件配置。未设置这些进程配置时，回退到本机 Claude 配置。
@@ -51,12 +51,16 @@
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://gateway.example.com",
-    "ANTHROPIC_AUTH_TOKEN": "YOUR_TOKEN"
+    "ANTHROPIC_API_KEY": "YOUR_API_KEY"
   }
 }
 ```
 
-这里的凭据只用于相同 origin 的历史请求，不会自动把历史请求地址改成本机网关地址。
+对 CC 的 `/v1/messages` 和 `/v1/messages/count_tokens` 请求，回放从同一份本机配置读取 Base URL 和密钥，用 Base URL 加上对应接口路径重建目标地址，并保留原查询参数。例如历史地址为 `https://old.example/old-prefix/v1/messages?beta=true`，本机 Base URL 为 `https://new.example/anthropic`，回放地址就是 `https://new.example/anthropic/v1/messages?beta=true`。Base URL 使用 CC 原本配置的地址前缀，不要额外追加接口路径。已配置密钥但没有 Base URL 时，使用 Anthropic 默认地址。
+
+没有本机相关配置时保留历史地址；其他协议也保留历史地址。如果为历史 origin 显式配置了 `CCWHAT_REPLAY_HEADERS`，仍按该映射和原地址回放。认证 Header 按最终目标 origin 生成，不把本机密钥发送到旧地址，也不自动转换不同服务商的请求体或模型名称。
+
+连接相关字段会删除旧值：`Host` 指定目标主机，`Content-Length` 表示请求体的字节数，`Connection` 控制当前连接，例如 `Connection: close` 表示响应后关闭连接。这些值由 HTTP 客户端按新请求生成或管理，不属于模型身份验证信息。
 
 需要为不同网关逐个指定认证 Header 时，使用 `CCWHAT_REPLAY_HEADERS`。它是 **origin → Header 对象** 的 JSON 映射；origin 包含协议、主机及非默认端口。它不改变请求目标。
 
@@ -84,4 +88,4 @@ ccwhat web --agent codex
 - 使用 preset 或显式 paths 时仍保留用户的过滤选择；自定义网关若采用不同路径，应调整该配置。
 - OpenSpec Marker 诊断仍是明确面向 Claude Code 的 Workflow Adapter；它没有被宣称为任意 CLI 的通用归因器。
 
-参考：[Claude 本机配置文件](https://code.claude.com/docs/en/settings)、[Claude 认证环境变量](https://code.claude.com/docs/en/env-vars)、[OpenAI 对 Codex 两种登录 endpoint 的说明](https://openai.com/index/unrolling-the-codex-agent-loop/)、[Anthropic SSE 协议](https://platform.claude.com/docs/en/build-with-claude/streaming)、[Python Windows 信号零问题](https://bugs.python.org/issue14480)。
+参考：[Claude API Key 与请求头](https://platform.claude.com/docs/en/api/overview)、[Claude 本机配置文件](https://code.claude.com/docs/en/settings)、[Claude 认证环境变量](https://code.claude.com/docs/en/env-vars)、[HTTP Connection 字段](https://www.rfc-editor.org/rfc/rfc9110.html#section-7.6.1)、[OpenAI 对 Codex 两种登录 endpoint 的说明](https://openai.com/index/unrolling-the-codex-agent-loop/)、[Anthropic SSE 协议](https://platform.claude.com/docs/en/build-with-claude/streaming)、[Python Windows 信号零问题](https://bugs.python.org/issue14480)。
