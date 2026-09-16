@@ -56,6 +56,6 @@ def test_replay_diff_reconstructs_original_sse_response() -> None:
 
 
 def test_replay_send_does_not_rewrite_request_when_unedited() -> None:
-    assert "should_edit_request = edited_text is not None" in SERVER
-    assert "if should_edit_request and msgs:" in SERVER
-    assert 'block.get("type") != "tool_result"' in SERVER
+    snippet = _function_snippet("sendReplayFromModal")
+    assert "if (!useOriginal)" in snippet
+    assert "path: record._edit_targets[idx].path" in snippet

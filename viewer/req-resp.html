@@ -978,7 +978,7 @@ function renderStats() {
   const totalInPerReq = [];  // [{v, line}]
 
   for (const r of ssRecs) {
-    const { usage } = parseSseEvents(r.sse_events);
+    const { usage } = r._sse_parsed || parseSseEvents(r.sse_events);
     const line = r._fileLine ?? null;
     if (!usage) { totalInPerReq.push({ v: 0, line }); continue; }
     const out = usage.output_tokens || 0;
@@ -1230,7 +1230,7 @@ function renderList() {
 
     let totalInTokens = '', outTokens = '';
     if (isSSE && r.sse_events?.length) {
-      const { usage } = parseSseEvents(r.sse_events);
+      const { usage } = r._sse_parsed || parseSseEvents(r.sse_events);
       if (usage) {
         const v = (usage.input_tokens || 0) + (usage.cache_read_input_tokens || 0) + (usage.cache_creation_input_tokens || 0);
         if (v > 0) totalInTokens = fmtN(v);
@@ -1248,7 +1248,7 @@ function renderList() {
         `<span class="ri-method">${esc(r.method || '')}</span>` +
         `<span class="ri-status ${statusCls}">${status}</span>` +
         (isSSE ? `<span class="sse-badge">SSE</span>` : '') +
-        (isSSE ? `<button class="replay-action-btn" data-idx="${i}" ${isRunning ? 'disabled' : ''}>${isRunning ? '⏳' : '▶'} 回放</button>` : '') +
+        (r._can_replay ? `<button class="replay-action-btn" data-idx="${i}" ${isRunning ? 'disabled' : ''}>${isRunning ? '⏳' : '▶'} 回放</button>` : '') +
         (totalInTokens || outTokens
           ? `<span style="font-size:10px;color:#6e7681;margin-left:auto;font-family:monospace;display:flex;gap:6px">` +
             (totalInTokens ? `<span title="总输入 tokens">in:${totalInTokens}</span>` : '') +
@@ -1263,7 +1263,7 @@ function renderList() {
         e.stopPropagation();
         const record = allRecords[i];
         const reqJson = JSON.parse(record.request?.body || '{}');
-        const userMsg = findReplayTargetMessage(reqJson.messages || []);
+        const userMsg = findReplayTargetMessage(requestMessages(reqJson));
         openReplayModal(record, i, reqJson, userMsg);
       } else {
         selectRecord(i);
@@ -1728,7 +1728,7 @@ function getPrevRecord(idx) {
 }
 
 function parseMsgs(r) {
-  try { return JSON.parse(r.request?.body || '{}').messages || []; }
+  try { return requestMessages(JSON.parse(r.request?.body || '{}')); }
   catch { return []; }
 }
 
@@ -1762,7 +1762,7 @@ function renderMsgBlock(b, blockIdx) {
     (b.id ? `<span style="font-size:10px;color:#484f58;font-family:monospace">${esc(b.id)}</span>` : '');
   wrap.appendChild(hdr);
 
-  if (b.type === 'text' && b.text) {
+  if (['text', 'input_text', 'output_text'].includes(b.type) && b.text) {
     wrap.appendChild(mkTextWithMdToggle(b.text));
   } else if (b.type === 'tool_use' && b.input != null) {
     const tree = document.createElement('div');
@@ -1823,7 +1823,7 @@ function renderDetail(r, idx) {
     try { reqJson = JSON.parse(reqBody); } catch {}
 
     if (reqJson) {
-      const msgs = reqJson.messages || [];
+      const msgs = requestMessages(reqJson);
       const lastMsg = msgs[msgs.length - 1];
       const sysBlocks = reqJson.system || [];
       const tools = reqJson.tools || [];
@@ -1923,7 +1923,7 @@ function renderDetail(r, idx) {
             if (i === content.length - 1) bDiv.style.borderBottom = 'none';
             const bType = blk.type || '?';
             const badge = `<span style="font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px;background:#21262d;color:#8b949e;margin-right:6px">${esc(bType)}</span>`;
-            if (bType === 'text') {
+            if (['text', 'input_text', 'output_text'].includes(bType)) {
               const text = blk.text || '';
               const isSystem = text.startsWith('<system-reminder') || text.startsWith('<local-command');
               if (isSystem) {
@@ -2082,7 +2082,7 @@ function renderDetail(r, idx) {
 
   // 5. SSE events or response body
   if (r.is_sse && r.sse_events?.length) {
-    const parsed = parseSseEvents(r.sse_events);
+    const parsed = r._sse_parsed || parseSseEvents(r.sse_events);
     const eventAnnotations = buildSseEventAnnotations(r.sse_events, parsed);
 
     // Tab section: 原始 | 解析
@@ -2147,6 +2147,8 @@ function renderDetail(r, idx) {
 
       if (item.type === 'text' && item.text) {
         blockDiv.appendChild(mkTextWithMdToggle(item.text));
+      } else if (item.type === 'thinking' && item.thinking) {
+        blockDiv.appendChild(mkTextWithMdToggle(item.thinking));
       } else if (item.type === 'tool_use' && item.input != null) {
         const tree = document.createElement('div');
         tree.className = 'json-tree';
@@ -2230,9 +2232,11 @@ function setReplayRunning(running, cacheKey) {
 }
 
 function getRecordCacheKey(record, idx) {
-  if (record._message_id) return `msg:${record._message_id}`;
-  if (record._fileLine) return `line:${record._fileLine}`;
-  return `idx:${idx}`;
+  if (record._record_key) return record._record_key;
+  const scope = `${record.timestamp || ''}:${record.url || ''}`;
+  if (record._message_id) return `${scope}:msg:${record._message_id}`;
+  if (record._fileLine) return `${scope}:line:${record._fileLine}`;
+  return `${scope}:idx:${idx}`;
 }
 
 async function openReplayModal(record, recordIdx, reqJson, userMsg) {
@@ -2267,11 +2271,12 @@ function renderReplayEditView(record, reqJson, userMsg) {
   originalContent = {};
 
   const modalBody = document.getElementById('replayModalBody');
-  const msgs = (reqJson && reqJson.messages) || [];
+  const targets = record._edit_targets || [];
+  const msgs = targets.map(t => ({ role: t.role, content: t.text }));
 
   // Initialize originalContent for each message
   msgs.forEach((msg, idx) => {
-    originalContent[idx] = extractMsgTextNoThinking(stripSystemReminders(msg));
+    originalContent[idx] = msg.content;
   });
 
   // Render all messages as collapsible list
@@ -2296,6 +2301,7 @@ function renderReplayEditView(record, reqJson, userMsg) {
 
   modalBody.innerHTML = `
     <div class="replay-edit-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:12px;overflow-wrap:anywhere">${esc(record.method || 'POST')} ${esc(record.url || '')}</div>
       <div class="replay-msg-list">${itemsHtml}</div>
       <div class="replay-actions">
         <button class="replay-btn replay-btn-secondary" onclick="sendReplayFromModal(true)">原文不改，直接回放</button>
@@ -2371,35 +2377,6 @@ function renderReplayDiffView(statusData) {
   `;
 }
 
-function stripSystemReminders(msg) {
-  if (!msg || !Array.isArray(msg.content)) return msg;
-  return { ...msg, content: msg.content.filter(b => !(b.type === 'text' && b.text && b.text.trimStart().startsWith('<system-reminder>'))) };
-}
-
-function extractMsgTextNoThinking(msg) {
-  if (!msg) return '';
-  const content = msg.content;
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    const parts = [];
-    for (const block of content) {
-      if (block.type === 'thinking') continue;
-      if (block.type === 'text' && block.text) parts.push(block.text);
-      else if (block.type === 'tool_result' && block.content) {
-        if (typeof block.content === 'string') parts.push(`[Tool Result] ${block.content}`);
-        else if (Array.isArray(block.content)) {
-          const t = block.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
-          parts.push(`[Tool Result] ${t}`);
-        }
-      } else if (block.type === 'tool_use') {
-        parts.push(`[Tool Use: ${block.name}] ${JSON.stringify(block.input)}`);
-      }
-    }
-    return parts.join('\n\n');
-  }
-  if (msg.text) return msg.text;
-  return '';
-}
 
 function toggleMsgItem(idx) {
   const item = document.getElementById(`replay-msg-item-${idx}`);
@@ -2478,6 +2455,13 @@ function extractReplayTargetText(msg) {
   return extractRawReplayText(msg);
 }
 
+function requestMessages(body) {
+  if (Array.isArray(body?.messages)) return body.messages;
+  if (Array.isArray(body?.input)) return body.input;
+  if (typeof body?.input === 'string') return [{ role: 'user', content: body.input }];
+  return [];
+}
+
 function findReplayTargetMessage(messages) {
   if (!Array.isArray(messages) || messages.length === 0) return null;
   return messages[messages.length - 1] || null;
@@ -2504,6 +2488,7 @@ function convertSseParsedToResult(sseParsed) {
 }
 
 function convertOriginalResponseToResult(record, sseParsed) {
+  if (record?._response) return record._response;
   if (sseParsed?.contents?.length) return convertSseParsedToResult(sseParsed);
   const body = record?.response?.body || '';
   if (!body) return null;
@@ -2517,7 +2502,7 @@ function convertOriginalResponseToResult(record, sseParsed) {
 function renderResponseMarkdown(responseJson) {
   if (!responseJson) return '<div style="color:var(--text-tertiary);font-style:italic">无内容</div>';
   const content = responseJson.content || [];
-  if (content.length === 0) return '<div style="color:var(--text-tertiary);font-style:italic">无内容</div>';
+  if (content.length === 0) return `<pre>${esc(JSON.stringify(responseJson, null, 2))}</pre>`;
   let html = '';
   content.forEach(block => {
     if (block.type === 'text' && block.text) {
@@ -2543,7 +2528,7 @@ function renderResponseMarkdown(responseJson) {
 function renderResponseMarkdownNoThinking(responseJson) {
   if (!responseJson) return '<div style="color:var(--text-tertiary);font-style:italic">无内容</div>';
   const content = responseJson.content || [];
-  if (content.length === 0) return '<div style="color:var(--text-tertiary);font-style:italic">无内容</div>';
+  if (content.length === 0) return `<pre>${esc(JSON.stringify(responseJson, null, 2))}</pre>`;
   let html = '';
   content.forEach(block => {
     if (block.type === 'text' && block.text) html += renderMarkdown(block.text);
@@ -2572,6 +2557,8 @@ function switchToEditView() {
 }
 
 async function sendReplayFromModal(useOriginal) {
+  if (isReplayRunning || !currentModalRecord) return;
+  const submittedKey = currentModalRecordKey;
   // Show loading - replace entire modal body temporarily
   const modalBody = document.getElementById('replayModalBody');
   const loadingHtml = `
@@ -2585,7 +2572,7 @@ async function sendReplayFromModal(useOriginal) {
   try {
     const record = currentModalRecord;
     const reqJson = JSON.parse(record.request?.body || '{}');
-    const msgs = reqJson.messages || [];
+    const msgs = requestMessages(reqJson);
     const userMsg = findReplayTargetMessage(msgs);
     const originalText = extractReplayTargetText(userMsg);
 
@@ -2595,10 +2582,9 @@ async function sendReplayFromModal(useOriginal) {
       Object.entries(editedMessages).forEach(([idxStr, text]) => {
         const idx = parseInt(idxStr, 10);
         if (text !== originalContent[idx]) {
-          edits.push({ msgIndex: idx, editedText: text });
+          edits.push({ path: record._edit_targets[idx].path, editedText: text });
         }
       });
-      edits.sort((a, b) => a.msgIndex - b.msgIndex);
     }
 
     // Create session
@@ -2630,12 +2616,16 @@ async function sendReplayFromModal(useOriginal) {
     if (!sendData.ok) throw new Error(sendData.error || 'Unknown error');
 
     // Render diff view with appliedEdits from response
-    renderReplayDiffView({
-      result: sendData.result,
-      appliedEdits: sendData.appliedEdits || [],
-    });
+    if (currentModalRecordKey === submittedKey) {
+      renderReplayDiffView({
+        result: sendData.result,
+        appliedEdits: sendData.appliedEdits || [],
+      });
+    }
   } catch (err) {
-    modalBody.innerHTML = `<div style="color:var(--danger);padding:20px">错误: ${esc(err.message)}</div>`;
+    if (currentModalRecordKey === submittedKey) {
+      modalBody.innerHTML = `<div style="color:var(--danger);padding:20px">错误: ${esc(err.message)}</div>`;
+    }
   } finally {
     setReplayRunning(false, null);
   }

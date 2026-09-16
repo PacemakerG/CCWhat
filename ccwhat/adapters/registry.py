@@ -54,5 +54,9 @@ def create_adapter(agent: str, projects_dir: Path | None = None) -> AgentAdapter
 def infer_agent_from_target(target_args: tuple[str, ...]) -> str:
     if not target_args:
         return "claude"
-    target = target_args[0].lower()
+    target = target_args[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
+    for suffix in (".exe", ".cmd", ".bat"):
+        if target.endswith(suffix):
+            target = target[:-len(suffix)]
+            break
     return normalize_agent_name(target)

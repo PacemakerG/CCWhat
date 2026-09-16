@@ -1010,7 +1010,7 @@ async function openDetail(node) {
   detailPanel.classList.add('open');
   detailBackdrop.classList.add('open');
 
-  if (FALLBACK_ONLY_TYPES.has(node.type)) {
+  if (node.normalized || FALLBACK_ONLY_TYPES.has(node.type)) {
     renderFallback(node);
     return;
   }

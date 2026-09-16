@@ -225,7 +225,7 @@ def _detect_claude_domains(home: Path | None = None) -> list[str]:
 
 def _detect_codex_domains(home: Path | None = None) -> list[str]:
     if tomllib is None:
-        return ["api.openai.com"]
+        return ["api.openai.com", "chatgpt.com"]
     config_path = (home or Path.home()) / ".codex" / "config.toml"
     hosts: list[str] = []
     try:
@@ -256,54 +256,8 @@ def _detect_codex_domains(home: Path | None = None) -> list[str]:
     _add_host(hosts, os.environ.get("OPENAI_BASE_URL"))
     _add_host(hosts, os.environ.get("CHATGPT_BASE_URL"))
 
-    return hosts if hosts else ["api.openai.com"]
+    return hosts if hosts else ["api.openai.com", "chatgpt.com"]
 
-
-# ---------------------------------------------------------------------------
-# Default paths per agent type
-# ---------------------------------------------------------------------------
-
-_AGENT_DEFAULT_PATHS: dict[str, list[str]] = {
-    "opencode": ["/v1/messages", "/v1/chat/completions"],
-    "claude": ["/v1/messages"],
-    "codex": ["/v1/responses"],
-}
-
-
-def _detect_opencode_paths(home: Path | None = None) -> list[str]:
-    """Detect API path prefixes from opencode config's baseURL."""
-    config_path = (home or Path.home()) / ".config" / "opencode" / "opencode.jsonc"
-    try:
-        raw = config_path.read_text(encoding="utf-8")
-        data = json.loads(_strip_jsonc_comments(raw))
-        providers = data.get("provider", {})
-        if not isinstance(providers, dict):
-            return []
-        paths: list[str] = []
-        for provider_cfg in providers.values():
-            if not isinstance(provider_cfg, dict):
-                continue
-            options = provider_cfg.get("options", {})
-            if not isinstance(options, dict):
-                continue
-            for key in ("baseURL", "baseUrl", "base_url"):
-                base_url = options.get(key)
-                if isinstance(base_url, str) and base_url:
-                    break
-            else:
-                continue
-            if "://" not in base_url:
-                base_url = "https://" + base_url
-            parsed = urlparse(base_url)
-            path_prefix = parsed.path.rstrip("/")
-            if path_prefix in ("", "/v1"):
-                continue
-            api_path = path_prefix + "/chat/completions"
-            if api_path not in paths:
-                paths.append(api_path)
-        return paths
-    except Exception:
-        return []
 
 _AGENT_DETECTORS = {
     "opencode": _detect_opencode_domains,
@@ -337,14 +291,5 @@ def detect_domains(agent_name: str, _home: Path | None = None) -> list[str]:
 
 
 def detect_default_paths(agent_name: str) -> list[str]:
-    """Return default path filters for a known agent, empty list otherwise."""
-    if agent_name.lower() == "opencode":
-        detected = _detect_opencode_paths()
-        # OpenCode built-in providers (e.g., opencode.ai) use /zen/v1 paths
-        if "opencode.ai" in detect_domains("opencode"):
-            zen_path = "/zen/v1/chat/completions"
-            if zen_path not in detected:
-                detected.append(zen_path)
-        if detected:
-            return detected
-    return list(_AGENT_DEFAULT_PATHS.get(agent_name.lower(), []))
+    """No implicit filters: agent names do not determine provider URL paths."""
+    return []

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import socket
 import time
@@ -12,7 +11,6 @@ import uuid
 import webbrowser
 from pathlib import Path
 from typing import Any
-import urllib.request
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -24,6 +22,8 @@ from starlette.concurrency import run_in_threadpool
 from ccwhat.adapters.base import AdapterNotImplementedError, AgentAdapter, SessionRenameError
 from ccwhat.adapters.claude import ClaudeAdapter
 from ccwhat.session_report import normalize_session_for_report
+from ccwhat.parsers.sse_parser import parse_response, parse_sse_events
+from ccwhat.replay import edit_targets, recorded_body, send_replay
 
 
 # ---------------------------------------------------------------------------
@@ -160,8 +160,40 @@ def _find_session_jsonl(session_id: str, projects_dir: Path) -> Path | None:
     return None
 
 
-def get_session_gantt(session_id: str, projects_dir: Path) -> dict[str, Any] | None:
+def _normalized_session_gantt(session: dict[str, Any]) -> dict[str, Any]:
+    """Render adapter events in recorded order, with explicit tool/result links."""
+    nodes = []
+    calls = {}
+    for index, event in enumerate(session.get("events", [])):
+        kind = event.get("kind")
+        role = event.get("role")
+        value = event.get("content")
+        text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        node_type = {"tool_call": "tool_use", "tool_result": "tool_result", "reasoning": "thinking"}.get(kind)
+        node_type = node_type or ("user_input" if role == "user" else "assistant" if kind == "message" else "system")
+        content = {"items": [{"text": text}], "thinking": text, "output": value,
+                   "tool_name": event.get("toolName"), "tool_use_id": event.get("toolCallId"),
+                   "input": value if kind == "tool_call" else {}}
+        node = {"index": index, "uuid": event.get("id"), "type": node_type,
+                "title": event.get("summary", ""), "timestamp": event.get("timestamp"),
+                "content": content, "normalized": True}
+        call_id = event.get("toolCallId")
+        if kind == "tool_call" and call_id:
+            calls[call_id] = node
+        elif kind == "tool_result" and call_id in calls:
+            calls[call_id]["pair_last"] = index
+            content["tool_name"] = calls[call_id]["content"]["tool_name"]
+        nodes.append(node)
+    flattened = _flatten_gantt_nodes(nodes)
+    return {"sessionId": session["sessionId"], "nodes": flattened["flat"],
+            "sessionStartMs": flattened["sessionStartMs"], "sessionMaxMs": flattened["sessionMaxMs"]}
+
+
+def get_session_gantt(session_id: str, projects_dir: Path, adapter: AgentAdapter | None = None) -> dict[str, Any] | None:
     """Build session tree using claude_code_log's JsonRenderer pipeline."""
+    if adapter is not None and adapter.name != "claude":
+        session = adapter.load_session(session_id)
+        return _normalized_session_gantt(session) if session is not None else None
     from claude_code_log.converter import (
         _integrate_agent_entries,
         deduplicate_messages,
@@ -384,35 +416,7 @@ def get_logs(
     return {"records": all_records, "sessions": sessions}
 
 
-def _read_auth_token_from_config() -> str | None:
-    """Read AUTHORIZATION token from ~/.config/mcopilot-cli/.config.yaml."""
-    config_path = Path.home() / ".config" / "mcopilot-cli" / ".config.yaml"
-    try:
-        for line in config_path.read_text(encoding="utf-8").splitlines():
-            if line.startswith("AUTHORIZATION:"):
-                return line.split(":", 1)[1].strip()
-    except OSError:
-        pass
-    return None
 
-
-def _parse_x_client_token_from_env() -> str | None:
-    """Parse X-Client-Token from ANTHROPIC_CUSTOM_HEADERS environment variable.
-
-    ANTHROPIC_CUSTOM_HEADERS format:
-        X-Repo-Url: xxx
-        X-Branch: xxx
-        X-Client-Token: <token-value>
-        ...
-    """
-    custom_headers = os.environ.get("ANTHROPIC_CUSTOM_HEADERS", "")
-    for line in custom_headers.split("\n"):
-        line = line.strip()
-        if line.startswith("X-Client-Token:"):
-            parts = line.split(":", 1)
-            if len(parts) == 2:
-                return parts[1].strip()
-    return None
 
 
 def get_req_resp_sessions(logs_dir: Path) -> dict[str, Any]:
@@ -433,19 +437,7 @@ def get_req_resp_sessions(logs_dir: Path) -> dict[str, Any]:
 
 
 def _extract_sse_message_id(sse_events: list[str]) -> str | None:
-    """Parse SSE events and return message.id from message_start event."""
-    for ev in sse_events:
-        for line in ev.split("\n"):
-            if not line.startswith("data:"):
-                continue
-            raw = line[len("data:"):].strip()
-            try:
-                d = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-            if d.get("type") == "message_start":
-                return d.get("message", {}).get("id")
-    return None
+    return parse_sse_events(sse_events).get("id")
 
 
 def get_req_resp_records(logs_dir: Path, session_id: str, date: str) -> list[dict]:
@@ -455,10 +447,26 @@ def get_req_resp_records(logs_dir: Path, session_id: str, date: str) -> list[dic
         return []
     records = _read_jsonl(jsonl_path)
     for r in records:
+        r["_record_key"] = f"{session_id}/{date}/{r['_fileLine']}"
+        response = None
         if r.get("is_sse") and r.get("sse_events"):
-            r["_message_id"] = _extract_sse_message_id(r["sse_events"])
+            response = parse_sse_events(r["sse_events"])
+            r["_sse_parsed"] = {"contents": response["content"], "usage": response.get("usage"),
+                                "stopReason": response.get("stop_reason")}
         else:
-            r["_message_id"] = None
+            try:
+                body = json.loads(r.get("response", {}).get("body", ""))
+                if isinstance(body, dict):
+                    response = parse_response(body)
+            except (ValueError, TypeError):
+                pass
+        r["_response"] = response
+        r["_message_id"] = response.get("id") if response else None
+        try:
+            r["_edit_targets"] = edit_targets(recorded_body(r))
+            r["_can_replay"] = True
+        except ValueError:
+            r["_can_replay"] = False
     return records
 
 
@@ -1036,147 +1044,42 @@ class ViewerBackend:
             "appliedEdits": session.get("appliedEdits", []),
         }
 
-    @staticmethod
-    def _extract_msg_text_no_thinking(msg: dict[str, Any]) -> str:
-        """Extract message text, skipping thinking blocks."""
-        if not msg:
-            return ""
-        content = msg.get("content")
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            parts = []
-            for block in content:
-                if block.get("type") == "thinking":
-                    continue
-                if block.get("type") == "text" and block.get("text"):
-                    parts.append(block["text"])
-                elif block.get("type") == "tool_result" and block.get("content"):
-                    tool_content = block["content"]
-                    if isinstance(tool_content, str):
-                        parts.append(f"[Tool Result] {tool_content}")
-                    elif isinstance(tool_content, list):
-                        texts = [c.get("text", "") for c in tool_content if c.get("type") == "text"]
-                        parts.append(f"[Tool Result] {''.join(texts)}")
-                elif block.get("type") == "tool_use":
-                    parts.append(f"[Tool Use: {block.get('name', '')}] {json.dumps(block.get('input', {}))}")
-            return "\n\n".join(parts)
-        return ""
-
     def create_replay_session_response(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         record = payload.get("record", {})
-        req_json = payload.get("reqJson", {})
-        original_text = payload.get("originalText", "")
-        record_key = payload.get("recordKey", "")
-
-        if not record or not req_json:
-            return 400, {"ok": False, "error": "missing record or reqJson"}
-
+        try:
+            req_json = recorded_body(record)
+        except ValueError as exc:
+            return 400, {"ok": False, "error": str(exc)}
         session_id = uuid.uuid4().hex
+        original_text = payload.get("originalText", "")
         session_data = {
-            "record": record,
-            "reqJson": req_json,
-            "originalText": original_text,
-            "editedText": original_text,
-            "isLoading": False,
-            "result": None,
-            "error": None,
-            "appliedEdits": [],
+            "record": record, "reqJson": req_json, "originalText": original_text,
+            "editedText": original_text, "isLoading": False, "result": None,
+            "error": None, "appliedEdits": [],
         }
         self.replay_store[session_id] = session_data
-        if record_key:
-            self.replay_store[f"rk:{record_key}"] = session_data
-
-        return 200, {"ok": True, "sessionId": session_id}
+        if payload.get("recordKey"):
+            self.replay_store[f"rk:{payload['recordKey']}"] = session_data
+        return 200, {"ok": True, "sessionId": session_id, "editTargets": edit_targets(req_json)}
 
     def send_replay_response(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         session_id = payload.get("sessionId", "")
-        edits = payload.get("edits", [])  # [{msgIndex, editedText}]
-
         if not session_id or session_id not in self.replay_store:
             return 404, {"ok": False, "error": "session not found"}
-
         session = self.replay_store[session_id]
-        session["isLoading"] = True
-
-        # Deep copy to avoid mutating stored original
-        req_body = json.loads(json.dumps(session["reqJson"]))
-        msgs = req_body.get("messages", [])
-
-        # Apply edits: record originalText before each replacement
-        applied_edits = []
-        for edit in edits:
-            raw_idx = edit.get("msgIndex", 0)
-            edited_text = edit.get("editedText")
-            should_edit_request = edited_text is not None
-            idx = max(0, min(raw_idx, len(msgs) - 1)) if msgs else 0
-            if should_edit_request and msgs:
-                msg = msgs[idx]
-                original_text = self._extract_msg_text_no_thinking(msg)
-                content = msg.get("content")
-                if isinstance(content, list):
-                    editable = [
-                        block for block in content
-                        if isinstance(block, dict) and block.get("type") != "tool_result"
-                    ]
-                    text_block = next((block for block in editable if block.get("type") == "text"), None)
-                    if text_block is not None:
-                        text_block["text"] = edited_text
-                    elif editable:
-                        editable[0]["text"] = edited_text
-                    else:
-                        msg["content"] = edited_text
-                else:
-                    msg["content"] = edited_text
-            else:
-                continue
-            applied_edits.append({
-                "msgIndex": idx,
-                "role": msg.get("role", ""),
-                "originalText": original_text,
-                "editedText": edited_text,
-            })
-
-        api_url = os.environ.get("CLAUDE_API_URL", "https://api.anthropic.com/v1/messages")
-        if "?" not in api_url:
-            api_url += "?beta=true"
-
-        record = session["record"]
-        orig_headers = record.get("request", {}).get("headers", {})
-        hop_by_hop = {"host", "content-length", "accept-encoding", "connection", "transfer-encoding", "keep-alive"}
-        headers = {k: v for k, v in orig_headers.items() if k.lower() not in hop_by_hop}
-
-        fresh_token = _parse_x_client_token_from_env()
-        if fresh_token:
-            headers["X-Client-Token"] = fresh_token
-
-        auth_token = _read_auth_token_from_config() or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        if auth_token:
-            headers["Authorization"] = f"Bearer {auth_token}"
-
-        req_body["stream"] = False
-        headers["Accept"] = "application/json"
-
+        session.update(isLoading=True, error=None, result=None, appliedEdits=[])
         try:
-            data = json.dumps(req_body).encode("utf-8")
-            req = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
-            response = urllib.request.urlopen(req, timeout=600)
-            status = response.getcode()
-            if status != 200:
-                error_body = response.read().decode("utf-8", errors="replace")[:500]
-                response.close()
-                raise Exception(f"API returned status {status}: {error_body}")
-            response_data = response.read()
-            response.close()
-            result = json.loads(response_data)
-            session["result"] = result
-            session["appliedEdits"] = applied_edits
-            session["isLoading"] = False
+            result, applied_edits = send_replay(session["record"], payload.get("edits", []))
+            session.update(result=result, appliedEdits=applied_edits)
             return 200, {"ok": True, "result": result, "appliedEdits": applied_edits}
-        except Exception as exc:
-            session["isLoading"] = False
+        except ValueError as exc:
             session["error"] = str(exc)
-            return 500, {"ok": False, "error": str(exc)}
+            return 400, {"ok": False, "error": str(exc)}
+        except Exception as exc:
+            session["error"] = str(exc)
+            return 502, {"ok": False, "error": str(exc)}
+        finally:
+            session["isLoading"] = False
 
     def rename_session_response(self, session_id: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         if not re.fullmatch(r"[0-9a-zA-Z_-]{20,64}", session_id):
@@ -1470,7 +1373,7 @@ def create_app(
 
     @app.get("/api/session-gantt/{session_id}", include_in_schema=False)
     async def session_gantt(session_id: str) -> JSONResponse:
-        data = await run_in_threadpool(get_session_gantt, session_id, backend.projects_dir)
+        data = await run_in_threadpool(get_session_gantt, session_id, backend.projects_dir, backend.adapter)
         if data is None:
             return _json({"error": "session not found"}, 404)
         return _json(data)

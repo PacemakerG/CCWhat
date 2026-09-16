@@ -2,6 +2,14 @@
 
 这里记录 AgentLens / agentlens 的重要版本变化。版本号以 `pyproject.toml` 和 `agentlens.__version__` 为准，发布标签使用 `v<version>`。
 
+## Unreleased
+
+- 请求回放改为使用记录中的地址、查询参数和 stream 设置，移除旧内部 CLI 凭据读取；按目标 origin 补充认证 Header。
+- 支持 Anthropic Messages、Chat Completions、Responses 的响应解析和精确文本编辑，修复整理日志丢失 content、工具调用丢失和跨会话回放缓存冲突。
+- 录制支持增量 UTF-8 解码及不同 SSE 换行格式；自动模式不再强加服务商路径假设，并补齐 Codex ChatGPT 登录的 HTTP 录制目标。
+- 修复完整 CLI 路径识别、非 Claude 会话时间线，以及 Windows 进程存活探测。
+- 详细现状、配置和支持边界见 [docs/REPLAY.md](./docs/REPLAY.md)。
+
 ## v2.5.0 - 2026-07-11
 
 ### OpenSpec 归因诊断：首个完整 Workflow Adapter

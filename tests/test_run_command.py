@@ -196,7 +196,7 @@ class RunCommandTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         detect_domains.assert_called_once_with("opencode")
         self.assertEqual(started["domains"], ["gw.example.com"])
-        self.assertEqual(started["paths"], ["/v1/messages"])
+        self.assertEqual(started["paths"], [])
         self.assertIn("Auto-detected domains", result.output)
 
     def test_run_auto_detects_when_config_has_preset_but_no_domains(self) -> None:
@@ -259,7 +259,7 @@ class RunCommandTests(unittest.TestCase):
         detect_domains.assert_called_once_with("opencode")
         self.assertEqual(started["domains"], ["manual.example.com", "gw.example.com"])
 
-    def test_run_merges_config_paths_with_auto_detected_default_paths(self) -> None:
+    def test_run_respects_explicit_paths_without_adding_protocol_guesses(self) -> None:
         cfg = RecordingConfig(paths=["/custom"], onboarding_complete=True)
         with tempfile.TemporaryDirectory() as tmp:
             started: dict[str, list[str]] = {}
@@ -287,8 +287,8 @@ class RunCommandTests(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(started["domains"], ["gw.example.com"])
-        self.assertEqual(started["paths"], ["/custom", "/v1/messages"])
-        default_paths.assert_called_once_with("opencode")
+        self.assertEqual(started["paths"], ["/custom"])
+        default_paths.assert_not_called()
 
     def test_run_starts_transparent_proxy_when_auto_detection_empty(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

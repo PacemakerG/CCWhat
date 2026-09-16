@@ -43,8 +43,8 @@ PRESETS: dict[str, dict[str, Any]] = {
         "paths": ["/v1/messages", "/v1/messages/count_tokens"],
     },
     "codex": {
-        "domains": ["api.openai.com"],
-        "paths": ["/v1/responses"],
+        "domains": ["api.openai.com", "chatgpt.com"],
+        "paths": ["/v1/responses", "/backend-api/codex/responses"],
     },
 }
 

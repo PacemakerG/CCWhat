@@ -12,8 +12,8 @@ class AdapterNotImplementedError(NotImplementedError):
         self.agent_name = agent_name
         super().__init__(
             f"No log adapter available for agent '{agent_name}'. "
-            f"Only Claude Code is supported in this version. "
-            f"Use --agent claude or --projects-dir to point to a Claude Code projects directory."
+            f"Supported log adapters: claude, codex, opencode. "
+            f"Use --agent to choose one; HTTP recording can still use configured domains."
         )
 
 

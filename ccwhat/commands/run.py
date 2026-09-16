@@ -37,7 +37,7 @@ from ccwhat.runtime.integrations.opencode import (
     install_opencode_integration,
 )
 from ccwhat.runtime.infra.ports import format_port_bind_error, port_bind_error, resolve_runtime_ports
-from ccwhat.runtime.platform import mitmdump_missing_message
+from ccwhat.runtime.platform import mitmdump_missing_message, process_is_alive
 from ccwhat.runtime.infra.registry import RunRegistry, utc_now
 
 
@@ -94,12 +94,8 @@ def _proxy_is_running(port: int) -> bool:
         except (ValueError, OSError):
             pid = None
         # Verify the process is still alive
-        if pid is not None:
-            try:
-                os.kill(pid, 0)  # signal 0 = existence check
-                return True
-            except (ProcessLookupError, PermissionError):
-                pass
+        if pid is not None and process_is_alive(pid):
+            return True
         marker.unlink(missing_ok=True)
     # Port is occupied but no ccwhat marker — refuse to proceed
     click.echo(
@@ -392,13 +388,9 @@ def run(
         detected_domains = _agent_config.detect_domains(agent_name)
         effective_domains = list(dict.fromkeys(configured_domains + detected_domains))
 
-        configured_paths = cfg.effective_paths() if cfg is not None else []
-        detected_paths = (
-            _agent_config.detect_default_paths(agent_name)
-            if detected_domains
-            else []
-        )
-        effective_paths = list(dict.fromkeys(configured_paths + detected_paths))
+        # A CLI name does not determine its provider's URL layout or protocol.
+        # Restrict paths only when the user configured a filter/preset.
+        effective_paths = cfg.effective_paths() if cfg is not None else []
 
         max_body_bytes = cfg.max_body_bytes if cfg is not None else DEFAULT_MAX_BODY_BYTES
         redact_headers = cfg.redact_headers if cfg is not None else list(DEFAULT_REDACT_HEADERS)

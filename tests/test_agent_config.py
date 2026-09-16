@@ -201,10 +201,10 @@ base_url = "https://portkey.example.com/v1"
     def test_no_base_url_returns_default(self, tmp_path):
         toml = '[shell_environment_policy.set]\nANTHROPIC_MODEL = "opus"\n'
         self._write_codex_config(tmp_path, toml)
-        assert detect_domains("codex", _home=tmp_path) == ["api.openai.com"]
+        assert detect_domains("codex", _home=tmp_path) == ["api.openai.com", "chatgpt.com"]
 
     def test_missing_config_returns_default(self, tmp_path):
-        assert detect_domains("codex", _home=tmp_path) == ["api.openai.com"]
+        assert detect_domains("codex", _home=tmp_path) == ["api.openai.com", "chatgpt.com"]
 
 
 # ---------------------------------------------------------------------------
@@ -225,15 +225,13 @@ class TestUnknownAgent:
 
 class TestDetectDefaultPaths:
     def test_opencode_paths(self):
-        paths = detect_default_paths("opencode")
-        # OpenCode built-in provider (opencode.ai) uses /zen/v1 paths
-        assert "/zen/v1/chat/completions" in paths
+        assert detect_default_paths("opencode") == []
 
     def test_claude_paths(self):
-        assert detect_default_paths("claude") == ["/v1/messages"]
+        assert detect_default_paths("claude") == []
 
     def test_codex_paths(self):
-        assert detect_default_paths("codex") == ["/v1/responses"]
+        assert detect_default_paths("codex") == []
 
     def test_unknown_agent_empty(self):
         assert detect_default_paths("unknown") == []

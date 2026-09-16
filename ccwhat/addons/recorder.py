@@ -6,8 +6,10 @@ package (it runs in a different process). All config is passed via env vars.
 
 from __future__ import annotations
 
+import codecs
 import json
 import os
+import re
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -152,7 +154,7 @@ class RecorderAddon:
         original_len = len(encoded)
         if original_len <= self._max_body_bytes:
             return body, False, original_len
-        truncated = encoded[: self._max_body_bytes].decode("utf-8", errors="replace")
+        truncated = encoded[: self._max_body_bytes].decode("utf-8", errors="ignore")
         return truncated, True, original_len
 
     # ------------------------------------------------------------------
@@ -181,7 +183,10 @@ class RecorderAddon:
         if "text/event-stream" in content_type:
             if self._should_record_with_response(flow):
                 flow.response.stream = self._make_sse_stream_handler(flow)
-                self._sse_buffers[flow.id] = {"events": [], "buffer": ""}
+                self._sse_buffers[flow.id] = {
+                    "events": [], "buffer": "",
+                    "decoder": codecs.getincrementaldecoder("utf-8")("replace"),
+                }
 
     def _should_record_with_response(self, flow: http.HTTPFlow) -> bool:
         """Check domain/path match (response already present for CT check)."""
@@ -201,8 +206,8 @@ class RecorderAddon:
             state = self._sse_buffers.get(flow.id)
             if state is None:
                 return chunk
-            text = state["buffer"] + chunk.decode("utf-8", errors="replace")
-            parts = text.split("\n\n")
+            text = state["buffer"] + state["decoder"].decode(chunk, final=not chunk)
+            parts = re.split(r"\r\n\r\n|\n\n|\r\r", text)
             for event in parts[:-1]:
                 event = event.strip()
                 if event:
@@ -280,6 +285,7 @@ class RecorderAddon:
 
         record: dict[str, Any] = {
             "timestamp": timestamp,
+            "session_id": session_id,
             "domain": flow.request.pretty_host,
             "method": flow.request.method,
             "url": flow.request.pretty_url,

@@ -66,7 +66,7 @@ Search Sessions, Tasks, Turns, and events within the current Session, the curren
 
 ### Compare and replay
 
-Compare adjacent Turns to find added, removed, or changed context fields. Historical requests containing a real user message can be replayed as-is or resent with an edited Prompt to validate behavior and compare alternatives.
+Compare adjacent Turns to find added, removed, or changed context fields. Replay complete JSON POST requests to their recorded endpoint, or edit individual text fields before resending. Anthropic Messages, OpenAI Chat Completions, and Responses are supported. See the [replay guide](./docs/REPLAY.md) for credentials, project status, and supported boundaries.
 
 ### Segment and refine Tasks
 
